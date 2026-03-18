@@ -5,9 +5,13 @@ import {
   signOut, 
   onAuthStateChanged,
   sendEmailVerification,
-  updateProfile
+  updateProfile,
+  deleteUser,
+  updatePassword
 } from "firebase/auth";
-import { auth } from "../firebase";
+import { auth, db, storage } from "../firebase";
+import { doc, deleteDoc } from "firebase/firestore";
+import { ref, deleteObject } from "firebase/storage";
 import toast from "react-hot-toast";
 
 const AuthContext = createContext();
@@ -78,6 +82,44 @@ export function AuthProvider({ children }) {
     return signOut(auth);
   }
 
+  async function deleteAccount() {
+    if (!currentUser) return { success: false, error: "No active user" };
+    
+    // 1. Delete Firestore user document (Best effort)
+    try {
+      const userDocRef = doc(db, "users", currentUser.uid);
+      await deleteDoc(userDocRef);
+    } catch (e) {
+      console.warn("Could not delete Firestore doc (likely security rules):", e);
+    }
+    
+    // 2. Delete Profile Photo from Storage (Best effort)
+    try {
+      const photoRef = ref(storage, `avatars/${currentUser.uid}`);
+      await deleteObject(photoRef);
+    } catch (e) {
+      console.warn("Could not delete Storage avatar:", e);
+    }
+
+    // 3. Delete Auth Account
+    try {
+      await deleteUser(currentUser);
+      
+      toast.success("Account deleted successfully. We're sorry to see you go!");
+      return { success: true };
+    } catch (error) {
+      console.error("Auth deletion error:", error);
+      if (error.code === 'auth/requires-recent-login') {
+        toast.error("For security, you must have logged in recently to delete your account. Redirecting...");
+        await signOut(auth); // Force log out
+        return { success: false, error: "requires-recent-login", forceLogout: true };
+      } else {
+        toast.error(`Failed to delete account: ${error.message}`);
+      }
+      return { success: false, error: error.message };
+    }
+  }
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       // Validate IITD domain & verification state dynamically
@@ -100,11 +142,32 @@ export function AuthProvider({ children }) {
     return unsubscribe;
   }, []);
 
+  async function changeUserPassword(newPassword) {
+    if (!currentUser) return { success: false, error: "No active user" };
+    try {
+      await updatePassword(currentUser, newPassword);
+      toast.success("Password changed successfully!");
+      return { success: true };
+    } catch (error) {
+      console.error("Password change error:", error);
+      if (error.code === 'auth/requires-recent-login') {
+        toast.error("For security, you must have logged in recently to change your password. Redirecting...");
+        await signOut(auth); // Force log out
+        return { success: false, error: "requires-recent-login", forceLogout: true };
+      } else {
+        toast.error(`Failed to change password: ${error.message}`);
+      }
+      return { success: false, error: error.message };
+    }
+  }
+
   const value = {
     currentUser,
     signup,
     login,
     logout,
+    deleteAccount,
+    changeUserPassword,
     loading
   };
 

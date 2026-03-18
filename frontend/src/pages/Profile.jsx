@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { 
   User, Settings, Bell, Shield, ChevronRight, Package, Star, ShoppingBag, 
-  LogOut, Edit3, Camera, Save, X, Phone, AlignLeft 
+  LogOut, Edit3, Camera, Save, X, Phone, AlignLeft, Trash2
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { db, storage } from "../firebase";
@@ -12,7 +12,7 @@ import { updateProfile } from "firebase/auth";
 import toast from "react-hot-toast";
 
 function Profile() {
-  const { currentUser, logout } = useAuth();
+  const { currentUser, logout, deleteAccount, changeUserPassword } = useAuth();
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
 
@@ -20,6 +20,8 @@ function Profile() {
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [showPasswordForm, setShowPasswordForm] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
 
   // Form State
   const [name, setName] = useState("");
@@ -65,6 +67,42 @@ function Profile() {
       navigate("/login");
     } catch (error) {
       toast.error("Failed to log out");
+    }
+  }
+
+  async function handleDeleteAccount() {
+    if (window.confirm("Are you sure you want to permanently delete your account? This action cannot be undone.")) {
+      try {
+        setSaving(true);
+        const result = await deleteAccount();
+        setSaving(false);
+        
+        if (result.success) {
+          navigate("/login");
+        } else if (result.forceLogout) {
+          navigate("/login");
+        }
+      } catch (err) {
+        setSaving(false);
+        console.error("Fatal Crash in handleDeleteAccount:", err);
+      }
+    }
+  }
+
+  async function submitPasswordChange() {
+    if (newPassword.length < 6) {
+      toast.error("Password must be at least 6 characters.");
+      return;
+    }
+    setSaving(true);
+    const result = await changeUserPassword(newPassword);
+    setSaving(false);
+    
+    if (result.success) {
+      setNewPassword("");
+      setShowPasswordForm(false);
+    } else if (result.forceLogout) {
+      navigate("/login");
     }
   }
 
@@ -317,15 +355,42 @@ function Profile() {
             </div>
             <ChevronRight size={18} className="setting-arrow" />
           </div>
-          <div className="setting-item">
-            <div className="setting-info">
+          <div className="setting-item" style={{ flexDirection: 'column', alignItems: 'flex-start', padding: showPasswordForm ? 'var(--space-md)' : '16px' }}>
+            <div 
+              className="setting-info" 
+              style={{ width: '100%', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+              onClick={() => setShowPasswordForm(!showPasswordForm)}
+            >
               <div className="setting-icon"><Shield size={18} /></div>
-              <div className="setting-text">
+              <div className="setting-text" style={{ flexGrow: 1 }}>
                 <h4>Security</h4>
-                <p>Password and 2FA</p>
+                <p>Change Password</p>
               </div>
+              <ChevronRight size={18} className="setting-arrow" style={{ transform: showPasswordForm ? 'rotate(90deg)' : 'none', transition: 'transform 0.2s' }} />
             </div>
-            <ChevronRight size={18} className="setting-arrow" />
+            
+            {showPasswordForm && (
+              <div className="password-change-form" style={{ width: '100%', marginTop: 'var(--space-md)', paddingTop: 'var(--space-md)', borderTop: '1px solid var(--border-subtle)' }}>
+                <div className="form-group edit-form-group" style={{ marginBottom: 'var(--space-md)' }}>
+                  <label>New Password</label>
+                  <input 
+                    type="password" 
+                    value={newPassword} 
+                    onChange={e => setNewPassword(e.target.value)} 
+                    placeholder="Enter new password (min. 6 characters)"
+                    style={{ width: '100%', padding: '10px 14px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)', background: 'var(--bg-card)', color: 'white', marginTop: 'var(--space-xs)' }}
+                  />
+                </div>
+                <div className="edit-actions" style={{ justifyContent: 'flex-start', gap: 'var(--space-md)' }}>
+                  <button className="btn-cancel" onClick={() => setShowPasswordForm(false)} disabled={saving} style={{ padding: '8px 16px', fontSize: '13px' }}>
+                    Cancel
+                  </button>
+                  <button className="btn-save" onClick={submitPasswordChange} disabled={saving} style={{ padding: '8px 16px', fontSize: '13px' }}>
+                    {saving ? "Saving..." : "Update Password"}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           <div 
@@ -341,6 +406,23 @@ function Profile() {
               <div className="setting-text">
                 <h4 style={{ color: "var(--danger)" }}>Sign Out</h4>
                 <p>Log out of your account</p>
+              </div>
+            </div>
+          </div>
+
+          <div 
+            className="setting-item" 
+            id="profile-delete" 
+            onClick={handleDeleteAccount}
+            style={{ cursor: "pointer", marginTop: "var(--space-sm)", borderColor: "rgba(248, 113, 113, 0.5)", background: "rgba(248, 113, 113, 0.05)" }}
+          >
+            <div className="setting-info">
+              <div className="setting-icon" style={{ color: "var(--danger)", background: "rgba(248, 113, 113, 0.2)" }}>
+                <Trash2 size={18} />
+              </div>
+              <div className="setting-text">
+                <h4 style={{ color: "var(--danger)" }}>Delete Account</h4>
+                <p>Permanently remove your account</p>
               </div>
             </div>
           </div>
