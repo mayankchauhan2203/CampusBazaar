@@ -2,12 +2,14 @@ import { collection, getDocs, updateDoc, doc } from "firebase/firestore";
 import { db } from "../firebase";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Search, ShoppingCart, Package, PlusCircle, CheckCircle } from "lucide-react";
+import { Search, ShoppingCart, Package, PlusCircle, CheckCircle, User } from "lucide-react";
 import toast from "react-hot-toast";
+import { useAuth } from "../context/AuthContext";
 
 const CATEGORIES = ["All", "Electronics", "Books", "Furniture", "Clothing", "Sports", "Other"];
 
 function Marketplace() {
+  const { currentUser } = useAuth();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -158,7 +160,12 @@ function Marketplace() {
                 <div className="price">₹{item.price}</div>
                 <p className="description">{item.description || "No description provided"}</p>
 
-                {item.status === "available" ? (
+                {item.sellerId === currentUser?.uid ? (
+                  <button className="buy-btn" disabled style={{ background: "var(--bg-darker)", border: "1px solid var(--border-subtle)", color: "var(--text-secondary)" }}>
+                    <User size={16} />
+                    Your Listing
+                  </button>
+                ) : item.status === "available" ? (
                   <button
                     className="buy-btn buy-btn-active"
                     onClick={() => reserveItem(item.id)}

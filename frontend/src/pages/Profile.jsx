@@ -321,7 +321,7 @@ function Profile() {
             </div>
             <ChevronRight size={18} className="setting-arrow" />
           </Link>
-          <div className="setting-item">
+          <Link to="/my-listings" className="setting-item">
             <div className="setting-info">
               <div className="setting-icon"><Star size={18} /></div>
               <div className="setting-text">
@@ -330,7 +330,7 @@ function Profile() {
               </div>
             </div>
             <ChevronRight size={18} className="setting-arrow" />
-          </div>
+          </Link>
         </div>
 
         <div className="settings-section">
