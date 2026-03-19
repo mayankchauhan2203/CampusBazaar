@@ -1,12 +1,11 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { 
+  createUserWithEmailAndPassword, 
+  signInWithEmailAndPassword, 
   signOut, 
   onAuthStateChanged,
   updateProfile,
-  deleteUser,
-  sendSignInLinkToEmail,
-  isSignInWithEmailLink,
-  signInWithEmailLink
+  deleteUser
 } from "firebase/auth";
 import { auth, db, storage } from "../firebase";
 import { doc, deleteDoc } from "firebase/firestore";
@@ -23,42 +22,39 @@ export function AuthProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  async function sendMagicLink(email) {
+  async function signup(email, password, name) {
     if (!email.endsWith("@iitd.ac.in")) {
       return { success: false, error: "not-iitd" };
     }
 
-    const actionCodeSettings = {
-      url: window.location.origin + '/login',
-      handleCodeInApp: true,
-    };
-
     try {
-      await sendSignInLinkToEmail(auth, email, actionCodeSettings);
-      window.localStorage.setItem('emailForSignIn', email);
+      const result = await createUserWithEmailAndPassword(auth, email, password);
+      await updateProfile(result.user, { displayName: name });
+      toast.success("Account created successfully! You are now logged in.");
       return { success: true };
     } catch (error) {
-      console.error("Magic link error:", error);
-      return { success: false, error: error.message };
-    }
-  }
-
-  async function verifyMagicLink(email, url) {
-    try {
-      if (isSignInWithEmailLink(auth, url)) {
-        const result = await signInWithEmailLink(auth, email, url);
-        window.localStorage.removeItem('emailForSignIn');
-        return { success: true, user: result.user };
+      if (error.code === 'auth/email-already-in-use') {
+        toast.error("This email is already registered.");
+      } else {
+        toast.error("Failed to create account. Try a stronger password.");
       }
-      return { success: false, error: "invalid-link" };
-    } catch (error) {
-      console.error("Magic link verification error:", error);
       return { success: false, error: error.message };
     }
   }
 
-  function isMagicLink(url) {
-    return isSignInWithEmailLink(auth, url);
+  async function login(email, password) {
+    if (!email.endsWith("@iitd.ac.in")) {
+      return { success: false, error: "not-iitd" };
+    }
+
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+      toast.success("Successfully logged in!");
+      return { success: true };
+    } catch (error) {
+      toast.error("Invalid email or password.");
+      return { success: false, error: error.message };
+    }
   }
 
   function logout() {
@@ -68,15 +64,13 @@ export function AuthProvider({ children }) {
   async function deleteAccount() {
     if (!currentUser) return { success: false, error: "No active user" };
     
-    // 1. Delete Firestore user document (Best effort)
     try {
       const userDocRef = doc(db, "users", currentUser.uid);
       await deleteDoc(userDocRef);
     } catch (e) {
-      console.warn("Could not delete Firestore doc (likely security rules):", e);
+      console.warn("Could not delete Firestore doc:", e);
     }
     
-    // 2. Delete Profile Photo from Storage (Best effort)
     try {
       const photoRef = ref(storage, `avatars/${currentUser.uid}`);
       await deleteObject(photoRef);
@@ -84,17 +78,14 @@ export function AuthProvider({ children }) {
       console.warn("Could not delete Storage avatar:", e);
     }
 
-    // 3. Delete Auth Account
     try {
       await deleteUser(currentUser);
-      
       toast.success("Account deleted successfully. We're sorry to see you go!");
       return { success: true };
     } catch (error) {
-      console.error("Auth deletion error:", error);
       if (error.code === 'auth/requires-recent-login') {
-        toast.error("For security, you must have logged in recently to delete your account. Redirecting...");
-        await signOut(auth); // Force log out
+        toast.error("For security, you must have logged in recently to delete your account.");
+        await signOut(auth);
         return { success: false, error: "requires-recent-login", forceLogout: true };
       } else {
         toast.error(`Failed to delete account: ${error.message}`);
@@ -105,14 +96,10 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
-      // Validate IITD domain & verification state dynamically
       if (user) {
         if (!user.email.endsWith("@iitd.ac.in")) {
           signOut(auth);
           setCurrentUser(null);
-        // } else if (!user.emailVerified) {
-        //   // If they are cached as logged in but never verified
-        //   setCurrentUser(null);
         } else {
           setCurrentUser(user);
         }
@@ -125,13 +112,10 @@ export function AuthProvider({ children }) {
     return unsubscribe;
   }, []);
 
-
-
   const value = {
     currentUser,
-    sendMagicLink,
-    verifyMagicLink,
-    isMagicLink,
+    signup,
+    login,
     logout,
     deleteAccount,
     loading
