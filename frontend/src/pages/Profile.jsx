@@ -1,18 +1,17 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { 
-  User, Settings, Bell, Shield, ChevronRight, Package, Star, ShoppingBag, 
+import {
+  User, Settings, Bell, Shield, ChevronRight, Package, Star, ShoppingBag,
   LogOut, Edit3, Camera, Save, X, Phone, AlignLeft, Trash2
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { db, storage } from "../firebase";
 import { doc, getDoc, setDoc } from "firebase/firestore";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { updateProfile } from "firebase/auth";
 import toast from "react-hot-toast";
 
 function Profile() {
-  const { currentUser, logout, deleteAccount, changeUserPassword } = useAuth();
+  const { currentUser, logout, deleteAccount, changeUserPassword, userData } = useAuth();
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
 
@@ -33,22 +32,22 @@ function Profile() {
   // Derived state
   const displayName = currentUser?.displayName || "Student User";
   const initial = displayName.charAt(0).toUpperCase();
-  const currentPhotoURL = photoPreview || currentUser?.photoURL;
+  const currentPhotoURL = photoPreview || userData?.photoURL || currentUser?.photoURL;
 
   useEffect(() => {
     async function fetchUserData() {
       if (!currentUser) return;
-      
+
       try {
         const userDocRef = doc(db, "users", currentUser.uid);
         const userDoc = await getDoc(userDocRef);
-        
+
         if (userDoc.exists()) {
           const data = userDoc.data();
           setPhone(data.phone || "");
           setBio(data.bio || "");
         }
-        
+
         setName(currentUser.displayName || "");
       } catch (error) {
         console.error("Error fetching user data:", error);
@@ -76,7 +75,7 @@ function Profile() {
         setSaving(true);
         const result = await deleteAccount();
         setSaving(false);
-        
+
         if (result.success) {
           navigate("/login");
         } else if (result.forceLogout) {
@@ -97,7 +96,7 @@ function Profile() {
     setSaving(true);
     const result = await changeUserPassword(newPassword);
     setSaving(false);
-    
+
     if (result.success) {
       setNewPassword("");
       setShowPasswordForm(false);
@@ -131,9 +130,21 @@ function Profile() {
     try {
       // 1. Upload photo if selected
       if (photoFile) {
-        const photoRef = ref(storage, `avatars/${currentUser.uid}`);
-        await uploadBytes(photoRef, photoFile);
-        newPhotoURL = await getDownloadURL(photoRef);
+        const formData = new FormData();
+        formData.append('file', photoFile);
+        formData.append('upload_preset', 'duds5cijd');
+        
+        const res = await fetch('https://api.cloudinary.com/v1_1/duds5cijd/image/upload', {
+          method: 'POST',
+          body: formData
+        });
+        
+        const data = await res.json();
+        if (data.secure_url) {
+          newPhotoURL = data.secure_url;
+        } else {
+          throw new Error(data.error?.message || 'Cloudinary upload failed');
+        }
       }
 
       // 2. Update Firebase Auth Profile (Name & Photo)
@@ -149,14 +160,16 @@ function Profile() {
       await setDoc(userRef, {
         phone: phone,
         bio: bio,
+        photoURL: newPhotoURL || null,
         updatedAt: new Date().toISOString()
       }, { merge: true });
 
       toast.success("Profile updated successfully!");
       setIsEditing(false);
-      
+
       // Clear tracking variables
       setPhotoFile(null);
+      setPhotoPreview(null);
     } catch (error) {
       console.error(error);
       toast.error("Failed to update profile");
@@ -191,32 +204,32 @@ function Profile() {
           </button>
         )}
 
-        <div 
-          className={`profile-avatar ${isEditing ? 'editable' : ''}`} 
+        <div
+          className={`profile-avatar ${isEditing ? 'editable' : ''}`}
           onClick={handleImageClick}
         >
           {currentPhotoURL ? (
-            <img 
-              src={currentPhotoURL} 
-              alt="Profile" 
-              style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} 
+            <img
+              src={currentPhotoURL}
+              alt="Profile"
+              style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }}
             />
           ) : (
             <span>{initial}</span>
           )}
-          
+
           {isEditing && (
             <div className="avatar-overlay">
               <Camera size={24} color="white" />
             </div>
           )}
-          
-          <input 
-            type="file" 
-            ref={fileInputRef} 
-            onChange={handleImageChange} 
-            accept="image/*" 
-            style={{ display: 'none' }} 
+
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleImageChange}
+            accept="image/*"
+            style={{ display: 'none' }}
           />
         </div>
 
@@ -226,23 +239,23 @@ function Profile() {
               <label>Full Name</label>
               <div className="input-with-icon">
                 <User size={16} className="input-icon" />
-                <input 
-                  type="text" 
-                  value={name} 
-                  onChange={e => setName(e.target.value)} 
+                <input
+                  type="text"
+                  value={name}
+                  onChange={e => setName(e.target.value)}
                   placeholder="Your Name"
                 />
               </div>
             </div>
-            
+
             <div className="form-group edit-form-group">
               <label>Phone Number</label>
               <div className="input-with-icon">
                 <Phone size={16} className="input-icon" />
-                <input 
-                  type="tel" 
-                  value={phone} 
-                  onChange={e => setPhone(e.target.value)} 
+                <input
+                  type="tel"
+                  value={phone}
+                  onChange={e => setPhone(e.target.value)}
                   placeholder="+91 98765 43210"
                 />
               </div>
@@ -252,9 +265,9 @@ function Profile() {
               <label>Bio / Hostel Info</label>
               <div className="input-with-icon">
                 <AlignLeft size={16} className="input-icon" style={{ top: '16px', transform: 'none' }} />
-                <textarea 
-                  value={bio} 
-                  onChange={e => setBio(e.target.value)} 
+                <textarea
+                  value={bio}
+                  onChange={e => setBio(e.target.value)}
                   placeholder="Hostel, Branch, or things you usually sell..."
                   rows={3}
                   style={{ paddingLeft: '44px' }}
@@ -275,7 +288,7 @@ function Profile() {
           <>
             <h2>{displayName}</h2>
             <p className="profile-email">{currentUser?.email}</p>
-            {phone && <p className="profile-phone"><Phone size={14}/> {phone}</p>}
+            {phone && <p className="profile-phone"><Phone size={14} /> {phone}</p>}
             {bio && <p className="profile-bio">{bio}</p>}
           </>
         )}
@@ -333,8 +346,10 @@ function Profile() {
           </Link>
         </div>
 
+
         <div className="settings-section">
           <h3>Account Settings</h3>
+          {/*
           <div className="setting-item">
             <div className="setting-info">
               <div className="setting-icon"><Settings size={18} /></div>
@@ -355,9 +370,11 @@ function Profile() {
             </div>
             <ChevronRight size={18} className="setting-arrow" />
           </div>
+          */}
+
           <div className="setting-item" style={{ flexDirection: 'column', alignItems: 'flex-start', padding: showPasswordForm ? 'var(--space-md)' : '16px' }}>
-            <div 
-              className="setting-info" 
+            <div
+              className="setting-info"
               style={{ width: '100%', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
               onClick={() => setShowPasswordForm(!showPasswordForm)}
             >
@@ -368,15 +385,15 @@ function Profile() {
               </div>
               <ChevronRight size={18} className="setting-arrow" style={{ transform: showPasswordForm ? 'rotate(90deg)' : 'none', transition: 'transform 0.2s' }} />
             </div>
-            
+
             {showPasswordForm && (
               <div className="password-change-form" style={{ width: '100%', marginTop: 'var(--space-md)', paddingTop: 'var(--space-md)', borderTop: '1px solid var(--border-subtle)' }}>
                 <div className="form-group edit-form-group" style={{ marginBottom: 'var(--space-md)' }}>
                   <label>New Password</label>
-                  <input 
-                    type="password" 
-                    value={newPassword} 
-                    onChange={e => setNewPassword(e.target.value)} 
+                  <input
+                    type="password"
+                    value={newPassword}
+                    onChange={e => setNewPassword(e.target.value)}
                     placeholder="Enter new password (min. 6 characters)"
                     style={{ width: '100%', padding: '10px 14px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)', background: 'var(--bg-card)', color: 'white', marginTop: 'var(--space-xs)' }}
                   />
@@ -393,9 +410,9 @@ function Profile() {
             )}
           </div>
 
-          <div 
-            className="setting-item" 
-            id="profile-logout" 
+          <div
+            className="setting-item"
+            id="profile-logout"
             onClick={handleLogout}
             style={{ cursor: "pointer", marginTop: "var(--space-md)", borderColor: "rgba(248, 113, 113, 0.2)" }}
           >
@@ -410,9 +427,9 @@ function Profile() {
             </div>
           </div>
 
-          <div 
-            className="setting-item" 
-            id="profile-delete" 
+          <div
+            className="setting-item"
+            id="profile-delete"
             onClick={handleDeleteAccount}
             style={{ cursor: "pointer", marginTop: "var(--space-sm)", borderColor: "rgba(248, 113, 113, 0.5)", background: "rgba(248, 113, 113, 0.05)" }}
           >

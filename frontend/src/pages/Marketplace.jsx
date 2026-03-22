@@ -91,6 +91,26 @@ function Marketplace() {
         createdAt: serverTimestamp(),
       });
 
+      // 3. Send actual Email to the seller (Requires Firebase Trigger Email Extension - Blaze Plan)
+      /*
+      await addDoc(collection(db, "mail"), {
+        to: [item.sellerEmail],
+        message: {
+          subject: `Your item "${item.title}" was just reserved!`,
+          html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+              <h2 style="color: #f4a261;">Great news, ${item.sellerName || "Student"}!</h2>
+              <p>Someone just reserved your item <strong>"${item.title}"</strong> on PeerMart.</p>
+              <p>To ensure a smooth and safe handover, the PeerMart admin team will mediate this transaction. An admin will be reaching out to you shortly via your contact details to coordinate the exchange.</p>
+              <p>Thank you for contributing to the campus marketplace!</p>
+              <br/>
+              <p style="color: #888; font-size: 12px;">The PeerMart Team</p>
+            </div>
+          `
+        }
+      });
+      */
+
       toast.success("Item reserved successfully!");
       fetchItems();
     } catch (error) {

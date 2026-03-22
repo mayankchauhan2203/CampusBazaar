@@ -13,7 +13,7 @@ function PostItem() {
   const [price, setPrice] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("");
-  const [image, setImage] = useState("");
+  const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [loading, setLoading] = useState(false); // Added loading state
@@ -33,12 +33,33 @@ function PostItem() {
     setSubmitting(true);
 
     try {
+      let finalImageUrl = "";
+      if (imageFile) {
+        const formData = new FormData();
+        formData.append('file', imageFile);
+        formData.append('upload_preset', 'duds5cijd');
+        
+        const res = await fetch('https://api.cloudinary.com/v1_1/duds5cijd/image/upload', {
+          method: 'POST',
+          body: formData
+        });
+        const data = await res.json();
+        
+        if (data.secure_url) {
+          finalImageUrl = data.secure_url;
+        } else {
+          toast.error("Image upload failed: " + (data.error?.message || 'Unknown error'));
+          setSubmitting(false);
+          return;
+        }
+      }
+
       const newItem = {
         title,
         price: Number(price),
         description,
         category: category || "Other",
-        image,
+        image: finalImageUrl,
         status: "available",
         sellerId: currentUser.uid, // Added sellerId
         sellerName: currentUser.displayName || "IITD Student", // Added sellerName
@@ -58,9 +79,12 @@ function PostItem() {
   function handleImageChange(e) {
     const file = e.target.files[0];
     if (file) {
-      const imageUrl = URL.createObjectURL(file);
-      setImage(imageUrl);
-      setImagePreview(imageUrl);
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error("Image must be less than 5MB");
+        return;
+      }
+      setImageFile(file);
+      setImagePreview(URL.createObjectURL(file));
     }
   }
 
@@ -115,6 +139,7 @@ function PostItem() {
               id="post-category"
               value={category}
               onChange={(e) => setCategory(e.target.value)}
+              required
             >
               <option value="">Select a category</option>
               {CATEGORIES.map((cat) => (
@@ -134,13 +159,14 @@ function PostItem() {
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={5}
+              required
             />
           </div>
 
           <button
             type="submit"
             className="submit-btn"
-            disabled={submitting || !title || !price}
+            disabled={submitting || !title.trim() || !price || !category || !description.trim() || !imageFile}
           >
             {submitting ? (
               <>
@@ -199,7 +225,7 @@ function PostItem() {
             <button
               type="button"
               onClick={() => {
-                setImage("");
+                setImageFile(null);
                 setImagePreview(null);
               }}
               style={{

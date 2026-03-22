@@ -11,9 +11,8 @@ import {
   signInWithEmailAndPassword,
   updatePassword
 } from "firebase/auth";
-import { auth, db, storage } from "../firebase";
+import { auth, db } from "../firebase";
 import { doc, deleteDoc, onSnapshot } from "firebase/firestore";
-import { ref, deleteObject } from "firebase/storage";
 import toast from "react-hot-toast";
 
 const AuthContext = createContext();
@@ -85,12 +84,7 @@ export function AuthProvider({ children }) {
     }
 
     // 2. Delete Profile Photo from Storage (Best effort)
-    try {
-      const photoRef = ref(storage, `avatars/${currentUser.uid}`);
-      await deleteObject(photoRef);
-    } catch (e) {
-      console.warn("Could not delete Storage avatar:", e);
-    }
+
 
     // 3. Delete Auth Account
     try {

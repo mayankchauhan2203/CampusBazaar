@@ -10,7 +10,7 @@ function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const location = useLocation();
-  const { currentUser, isAdmin } = useAuth();
+  const { currentUser, isAdmin, userData } = useAuth();
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20);
@@ -108,8 +108,16 @@ function Navbar() {
                 </div>
               </Link>
               <Link to="/profile" className="nav-link nav-link-profile">
-                <div className="nav-avatar">
-                  {currentUser.displayName ? currentUser.displayName.charAt(0).toUpperCase() : "S"}
+                <div className="nav-avatar" style={{ overflow: 'hidden' }}>
+                  {userData?.photoURL || currentUser.photoURL ? (
+                    <img 
+                      src={userData?.photoURL || currentUser.photoURL} 
+                      alt="Profile" 
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                    />
+                  ) : (
+                    currentUser.displayName ? currentUser.displayName.charAt(0).toUpperCase() : "S"
+                  )}
                 </div>
                 {currentUser.displayName?.split(" ")[0] || "Profile"}
               </Link>
