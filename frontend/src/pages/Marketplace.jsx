@@ -1,8 +1,8 @@
-import { collection, getDocs, updateDoc, doc, addDoc, serverTimestamp, getDoc } from "firebase/firestore";
+import { collection, getDocs } from "firebase/firestore";
 import { db } from "../firebase";
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Search, ShoppingCart, Package, PlusCircle, CheckCircle, User } from "lucide-react";
+import { Search, Package, PlusCircle } from "lucide-react";
 import toast from "react-hot-toast";
 import { useAuth } from "../context/AuthContext";
 
@@ -35,73 +35,10 @@ function Marketplace() {
     setLoading(false);
   }
 
-  async function reserveItem(item) {
-    if (!userData?.phone) {
-      toast.error("Please add your phone number in Profile before reserving an item.");
-      navigate("/profile");
-      return;
-    }
-
-    try {
-      const itemRef = doc(db, "items", item.id);
-      await updateDoc(itemRef, {
-        status: "reserved",
-        reservedBy: currentUser.uid,
-        reservedByName: currentUser.displayName || "IITD Student",
-        reservedByEmail: currentUser.email,
-      });
-
-      // Fetch seller's up-to-date phone number
-      let sellerPhone = "Unknown";
-      try {
-        const sellerDocSnap = await getDoc(doc(db, "users", item.sellerId));
-        if (sellerDocSnap.exists()) {
-          sellerPhone = sellerDocSnap.data().phone || "Unknown";
-        }
-      } catch (e) {
-        console.error("Failed to fetch seller phone", e);
-      }
-
-      // 1. Create ANONYMOUS notification for the seller
-      await addDoc(collection(db, "notifications"), {
-        recipientId: item.sellerId,
-        type: "reservation_anonymous",
-        itemId: item.id,
-        itemTitle: item.title,
-        itemPrice: item.price,
-        // intentionally omitting buyerName and buyerEmail
-        read: false,
-        createdAt: serverTimestamp(),
-      });
-
-      // 2. Send actual Email to the seller (Requires Firebase Trigger Email Extension - Blaze Plan)
-      /*
-      await addDoc(collection(db, "mail"), {
-        to: [item.sellerEmail],
-        message: {
-          subject: `Your item "${item.title}" was just reserved!`,
-          html: `
-            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-              <h2 style="color: #f4a261;">Great news, ${item.sellerName || "Student"}!</h2>
-              <p>Someone just reserved your item <strong>"${item.title}"</strong> on PeerMart.</p>
-              <p>To ensure a smooth and safe handover, the PeerMart admin team will mediate this transaction. An admin will be reaching out to you shortly via your contact details to coordinate the exchange.</p>
-              <p>Thank you for contributing to the campus marketplace!</p>
-              <br/>
-              <p style="color: #888; font-size: 12px;">The PeerMart Team</p>
-            </div>
-          `
-        }
-      });
-      */
-
-      toast.success("Item reserved successfully!");
-      fetchItems();
-    } catch (error) {
-      toast.error("Failed to reserve item");
-    }
-  }
-
   const filteredItems = items.filter((item) => {
+    if (item.status === "sold") {
+      return false; // Hide completed items from marketplace entirely
+    }
     if (currentUser && item.sellerId === currentUser.uid) {
       return false;
     }
@@ -193,7 +130,13 @@ function Marketplace() {
       {!loading && filteredItems.length > 0 && (
         <div className="marketplace-grid">
           {filteredItems.map((item) => (
-            <div key={item.id} className="product-card" id={`product-${item.id}`}>
+            <div 
+              key={item.id} 
+              className="product-card" 
+              id={`product-${item.id}`}
+              onClick={() => navigate(`/item/${item.id}`)}
+              style={{ cursor: "pointer", transition: "transform 0.2s, box-shadow 0.2s" }}
+            >
               <div className="product-card-image">
                 {item.image ? (
                   <img src={item.image} alt={item.title} />
@@ -217,27 +160,6 @@ function Marketplace() {
               <div className="product-card-body">
                 <h3>{item.title}</h3>
                 <div className="price">₹{Math.round(item.price * 1.08)}</div>
-                <p className="description">{item.description || "No description provided"}</p>
-
-                {item.sellerId === currentUser?.uid ? (
-                  <button className="buy-btn" disabled style={{ background: "var(--bg-darker)", border: "1px solid var(--border-subtle)", color: "var(--text-secondary)" }}>
-                    <User size={16} />
-                    Your Listing
-                  </button>
-                ) : item.status === "available" ? (
-                  <button
-                    className="buy-btn buy-btn-active"
-                    onClick={() => reserveItem(item)}
-                  >
-                    <ShoppingCart size={16} />
-                    Reserve Now
-                  </button>
-                ) : (
-                  <button className="buy-btn buy-btn-reserved" disabled>
-                    <CheckCircle size={16} />
-                    Reserved
-                  </button>
-                )}
               </div>
             </div>
           ))}

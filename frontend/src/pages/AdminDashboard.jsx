@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { collection, query, where, getDocs, doc, getDoc, updateDoc, deleteField } from "firebase/firestore";
 import { db } from "../firebase";
-import { Shield, Package, Phone, Mail, User, XCircle } from "lucide-react";
+import { Shield, Package, Phone, Mail, User, XCircle, CheckCircle } from "lucide-react";
 import toast from "react-hot-toast";
 
 function AdminDashboard() {
@@ -25,6 +25,23 @@ function AdminDashboard() {
     } catch (error) {
       console.error("Error unreserving item:", error);
       toast.error("Failed to cancel reservation");
+    }
+  }
+
+  async function handleMarkComplete(orderId) {
+    if (!window.confirm("Are you sure you want to mark this transaction as complete? This will finalize the sale and remove the item from the marketplace.")) return;
+    
+    try {
+      const itemRef = doc(db, "items", orderId);
+      await updateDoc(itemRef, {
+        status: "sold"
+      });
+      
+      setOrders(prev => prev.filter(o => o.id !== orderId));
+      toast.success("Transaction marked as complete!");
+    } catch (error) {
+      console.error("Error completing transaction:", error);
+      toast.error("Failed to mark transaction as complete");
     }
   }
 
@@ -163,6 +180,16 @@ function AdminDashboard() {
                   }}
                 >
                   <XCircle size={16} /> Cancel & Unreserve
+                </button>
+                <button
+                  onClick={() => handleMarkComplete(order.id)}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '8px',
+                    background: 'var(--accent-primary)', color: 'var(--bg-card)',
+                    border: 'none', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontSize: '14px', fontWeight: '500'
+                  }}
+                >
+                  <CheckCircle size={16} /> Mark as Complete
                 </button>
               </div>
             </div>
