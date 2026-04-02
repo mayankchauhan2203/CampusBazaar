@@ -499,7 +499,7 @@ function Profile() {
             className="setting-item"
             id="profile-logout"
             onClick={handleLogout}
-            style={{ cursor: "pointer", marginTop: "var(--space-md)", borderColor: "rgba(248, 113, 113, 0.2)" }}
+            style={{ cursor: "pointer", borderColor: "rgba(248, 113, 113, 0.2)" }}
           >
             <div className="setting-info">
               <div className="setting-icon" style={{ color: "var(--danger)", background: "rgba(248, 113, 113, 0.1)" }}>
@@ -516,7 +516,7 @@ function Profile() {
             className="setting-item"
             id="profile-delete"
             onClick={handleDeleteAccount}
-            style={{ cursor: "pointer", marginTop: "var(--space-sm)", borderColor: "rgba(248, 113, 113, 0.5)", background: "rgba(248, 113, 113, 0.05)" }}
+            style={{ cursor: "pointer", borderColor: "rgba(248, 113, 113, 0.5)", background: "rgba(248, 113, 113, 0.05)" }}
           >
             <div className="setting-info">
               <div className="setting-icon" style={{ color: "var(--danger)", background: "rgba(248, 113, 113, 0.2)" }}>
