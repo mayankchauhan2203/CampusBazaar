@@ -1,50 +1,38 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
-import { ShoppingBag, Shield, Zap, Heart, ArrowRight, Star, Store } from "lucide-react";
+import { ShoppingBag, Shield, Zap, Heart, ArrowRight, Star, Store, Package } from "lucide-react";
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "../firebase";
 
 function Home() {
-  const [stats, setStats] = useState({ activeListings: 0, itemsTraded: 0, users: 0, loaded: false });
+  const [recentItems, setRecentItems] = useState([]);
+  const navigate = useNavigate();
 
   useEffect(() => {
-    async function fetchStats() {
+    async function fetchRecentItems() {
       try {
-        let active = 0;
-        let tradedValue = 0;
-        
         const itemsSnap = await getDocs(collection(db, "items"));
+        const itemsList = [];
         itemsSnap.forEach(doc => {
           const data = doc.data();
           if (data.status === "available") {
-            active++;
-          } else {
-            tradedValue += (Number(data.price) || 0);
+             itemsList.push({ id: doc.id, ...data });
           }
         });
-
-        const usersSnap = await getDocs(collection(db, "users"));
-        const usersCount = usersSnap.size;
-
-        setStats({
-          activeListings: active,
-          itemsTraded: tradedValue,
-          users: usersCount,
-          loaded: true
+        
+        itemsList.sort((a, b) => {
+          const timeA = a.createdAt?.seconds || 0;
+          const timeB = b.createdAt?.seconds || 0;
+          return timeB - timeA;
         });
+
+        setRecentItems(itemsList.slice(0, 7));
       } catch (error) {
-        console.error("Error fetching homepage stats:", error);
+        console.error("Error fetching homepage recent items:", error);
       }
     }
-    fetchStats();
+    fetchRecentItems();
   }, []);
-
-  const formatCurrency = (val) => {
-    if (val === 0) return "₹0";
-    if (val >= 100000) return `₹${(val / 100000).toFixed(1)}L+`;
-    if (val >= 1000) return `₹${(val / 1000).toFixed(1)}K+`;
-    return `₹${val}`;
-  };
 
   return (
     <div>
@@ -85,19 +73,31 @@ function Home() {
             </Link>
           </div>
 
-          <div className="hero-stats">
-            <div className="hero-stat">
-              <div className="hero-stat-value">{stats.loaded ? stats.activeListings : "..."}</div>
-              <div className="hero-stat-label">Active Listings</div>
-            </div>
-            <div className="hero-stat">
-              <div className="hero-stat-value">{stats.loaded ? stats.users : "..."}</div>
-              <div className="hero-stat-label">Happy Students</div>
-            </div>
-            <div className="hero-stat">
-              <div className="hero-stat-value">{stats.loaded ? formatCurrency(stats.itemsTraded) : "..."}</div>
-              <div className="hero-stat-label">Items Traded</div>
-            </div>
+          <div className="hero-recent-items" style={{ display: 'flex', flexWrap: 'nowrap', overflowX: 'auto', gap: 'var(--space-md)', animation: 'fadeInUp 0.8s ease-out 0.6s both', maxWidth: '1000px', width: '100%', margin: 'var(--space-3xl) auto 0 auto', paddingBottom: '16px', scrollbarWidth: 'thin' }}>
+            {recentItems.length > 0 ? (
+               recentItems.map(item => (
+                 <div 
+                   key={item.id} 
+                   className="recent-item-card" 
+                   onClick={() => navigate('/marketplace')}
+                   style={{ background: 'var(--bg-card)', borderRadius: 'var(--radius-lg)', padding: 'var(--space-md)', border: '1px solid var(--border-subtle)', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: '12px', transition: 'transform 0.2s, box-shadow 0.2s', textAlign: 'left', flex: '0 0 180px' }}
+                   onMouseOver={(e) => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = 'var(--shadow-md)'; e.currentTarget.style.borderColor = 'var(--border-accent)'; }}
+                   onMouseOut={(e) => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.borderColor = 'var(--border-subtle)'; }}
+                 >
+                   <div style={{ width: '100%', height: '120px', borderRadius: 'var(--radius-md)', background: 'var(--bg-secondary)', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                     {item.image ? (
+                       <img src={item.image} alt={item.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                     ) : (
+                       <Package size={32} color="var(--text-muted)" />
+                     )}
+                   </div>
+                   <div>
+                     <h4 style={{ margin: '0 0 4px 0', fontSize: '14px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: 'var(--text-primary)' }}>{item.title}</h4>
+                     <div className="gradient-text" style={{ fontSize: '16px', fontWeight: 'bold' }}>₹{Math.round(item.price * 1.08)}</div>
+                   </div>
+                 </div>
+               ))
+            ) : null}
           </div>
         </div>
       </section>
