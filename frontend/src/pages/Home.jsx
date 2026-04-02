@@ -140,9 +140,9 @@ function Home() {
             <div className="feature-icon">
               <Heart size={24} />
             </div>
-            <h3>Zero Fees</h3>
+            <h3>Minimal Commission Fee</h3>
             <p>
-              No commissions, no hidden charges. Every rupee goes directly to you. Built by students, for students.
+              Keep almost everything you earn with our incredibly low commission rates. Built by students, for students.
             </p>
           </div>
         </div>
