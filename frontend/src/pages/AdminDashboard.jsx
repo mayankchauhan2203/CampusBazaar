@@ -17,6 +17,7 @@ function AdminDashboard() {
   const [completedOrders, setCompletedOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [completedLoading, setCompletedLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState("active"); // "active" | "completed"
 
   async function handleUnreserve(order) {
     if (!window.confirm("Are you sure you want to cancel this reservation? The item will be made available to everyone again.")) return;
@@ -53,7 +54,6 @@ function AdminDashboard() {
       const itemRef = doc(db, "items", order.id);
       await updateDoc(itemRef, { status: "sold" });
 
-      // Save a permanent completed order record
       const orderNumber = generateOrderNumber();
       await addDoc(collection(db, "completedOrders"), {
         orderNumber,
@@ -75,8 +75,6 @@ function AdminDashboard() {
 
       setOrders(prev => prev.filter(o => o.id !== order.id));
       toast.success(`Transaction complete! Order #${orderNumber}`);
-
-      // Refresh completed orders list
       fetchCompletedOrders();
     } catch (error) {
       console.error("Error completing transaction:", error);
@@ -153,145 +151,153 @@ function AdminDashboard() {
         <p className="admin-desc">Mediate active transactions and view complete contact details</p>
       </div>
 
-      {/* ── Active Reservations ───────────────────────────────────────────── */}
-      <div className="admin-section-label">
-        <Package size={18} />
-        <span>Active Reservations</span>
-        <span className="admin-section-count">{orders.length}</span>
+      {/* ── Tab Bar ──────────────────────────────────────────────────────── */}
+      <div className="admin-tabs">
+        <button
+          className={`admin-tab ${activeTab === "active" ? "admin-tab--active" : ""}`}
+          onClick={() => setActiveTab("active")}
+        >
+          <Package size={16} />
+          Active Reservations
+          <span className="admin-tab-count">{orders.length}</span>
+        </button>
+        <button
+          className={`admin-tab ${activeTab === "completed" ? "admin-tab--active" : ""}`}
+          onClick={() => setActiveTab("completed")}
+        >
+          <ClipboardList size={16} />
+          Completed Orders
+          <span className="admin-tab-count">{completedOrders.length}</span>
+        </button>
       </div>
 
-      {loading ? (
-        <div style={{ display: 'flex', justifyContent: 'center', padding: '60px 0' }}>
-          <div className="loading-spinner"></div>
-        </div>
-      ) : orders.length === 0 ? (
-        <div className="empty-state">
-          <div className="empty-icon"><Package size={32} /></div>
-          <h3>No active reservations</h3>
-          <p>There are no items currently awaiting mediation.</p>
-        </div>
-      ) : (
-        <div className="admin-orders-list">
-          {orders.map(order => (
-            <div key={order.id} className="admin-order-card">
-              {/* Item Info */}
-              <div className="admin-order-section">
-                <h3 className="admin-section-heading">Item Details</h3>
-                <div className="admin-item-row">
-                  {order.image ? (
-                    <img src={order.image} alt={order.title} className="admin-item-thumb" />
-                  ) : (
-                    <div className="admin-item-thumb-placeholder">
-                      <Package size={24} color="var(--text-muted)" />
+      {/* ── Active Reservations Panel ────────────────────────────────────── */}
+      {activeTab === "active" && (
+        <div>
+          {loading ? (
+            <div style={{ display: 'flex', justifyContent: 'center', padding: '60px 0' }}>
+              <div className="loading-spinner"></div>
+            </div>
+          ) : orders.length === 0 ? (
+            <div className="empty-state">
+              <div className="empty-icon"><Package size={32} /></div>
+              <h3>No active reservations</h3>
+              <p>There are no items currently awaiting mediation.</p>
+            </div>
+          ) : (
+            <div className="admin-orders-list">
+              {orders.map(order => (
+                <div key={order.id} className="admin-order-card">
+                  <div className="admin-order-section">
+                    <h3 className="admin-section-heading">Item Details</h3>
+                    <div className="admin-item-row">
+                      {order.image ? (
+                        <img src={order.image} alt={order.title} className="admin-item-thumb" />
+                      ) : (
+                        <div className="admin-item-thumb-placeholder">
+                          <Package size={24} color="var(--text-muted)" />
+                        </div>
+                      )}
+                      <div>
+                        <h4 className="admin-item-title">{order.title}</h4>
+                        <span className="admin-item-price">₹{order.price}</span>
+                        <p className="admin-item-category">Category: {order.category}</p>
+                      </div>
                     </div>
-                  )}
-                  <div>
-                    <h4 className="admin-item-title">{order.title}</h4>
-                    <span className="admin-item-price">₹{order.price}</span>
-                    <p className="admin-item-category">Category: {order.category}</p>
+                  </div>
+
+                  <div className="admin-order-section">
+                    <h3 className="admin-section-heading"><User size={15} /> Seller (Owner)</h3>
+                    <p className="admin-contact-name">{order.sellerName || "Unknown"}</p>
+                    <p className="admin-contact-detail"><Mail size={13} /> {order.sellerEmail || "N/A"}</p>
+                    <p className="admin-contact-detail"><Phone size={13} /> {order.sellerPhone}</p>
+                  </div>
+
+                  <div className="admin-order-section">
+                    <h3 className="admin-section-heading"><User size={15} /> Buyer (Reserved By)</h3>
+                    <p className="admin-contact-name">{order.reservedByName || "Unknown"}</p>
+                    <p className="admin-contact-detail"><Mail size={13} /> {order.reservedByEmail || "N/A"}</p>
+                    <p className="admin-contact-detail"><Phone size={13} /> {order.buyerPhone}</p>
+                  </div>
+
+                  <div className="admin-order-actions">
+                    <button className="admin-btn-cancel" onClick={() => handleUnreserve(order)}>
+                      <XCircle size={15} /> Cancel &amp; Unreserve
+                    </button>
+                    <button className="admin-btn-complete" onClick={() => handleMarkComplete(order)}>
+                      <CheckCircle size={15} /> Mark as Complete
+                    </button>
                   </div>
                 </div>
-              </div>
-
-              {/* Seller Info */}
-              <div className="admin-order-section">
-                <h3 className="admin-section-heading"><User size={15} /> Seller (Owner)</h3>
-                <p className="admin-contact-name">{order.sellerName || "Unknown"}</p>
-                <p className="admin-contact-detail"><Mail size={13} /> {order.sellerEmail || "N/A"}</p>
-                <p className="admin-contact-detail"><Phone size={13} /> {order.sellerPhone}</p>
-              </div>
-
-              {/* Buyer Info */}
-              <div className="admin-order-section">
-                <h3 className="admin-section-heading"><User size={15} /> Buyer (Reserved By)</h3>
-                <p className="admin-contact-name">{order.reservedByName || "Unknown"}</p>
-                <p className="admin-contact-detail"><Mail size={13} /> {order.reservedByEmail || "N/A"}</p>
-                <p className="admin-contact-detail"><Phone size={13} /> {order.buyerPhone}</p>
-              </div>
-
-              {/* Actions */}
-              <div className="admin-order-actions">
-                <button className="admin-btn-cancel" onClick={() => handleUnreserve(order)}>
-                  <XCircle size={15} /> Cancel &amp; Unreserve
-                </button>
-                <button className="admin-btn-complete" onClick={() => handleMarkComplete(order)}>
-                  <CheckCircle size={15} /> Mark as Complete
-                </button>
-              </div>
+              ))}
             </div>
-          ))}
+          )}
         </div>
       )}
 
-      {/* ── Completed Orders ─────────────────────────────────────────────── */}
-      <div className="admin-section-label" style={{ marginTop: 'var(--space-3xl)' }}>
-        <ClipboardList size={18} />
-        <span>Completed Orders</span>
-        <span className="admin-section-count">{completedOrders.length}</span>
-      </div>
+      {/* ── Completed Orders Panel ───────────────────────────────────────── */}
+      {activeTab === "completed" && (
+        <div>
+          {completedLoading ? (
+            <div style={{ display: 'flex', justifyContent: 'center', padding: '40px 0' }}>
+              <div className="loading-spinner"></div>
+            </div>
+          ) : completedOrders.length === 0 ? (
+            <div className="empty-state">
+              <div className="empty-icon"><ClipboardList size={32} /></div>
+              <h3>No completed orders yet</h3>
+              <p>Completed transactions will appear here with their unique order numbers.</p>
+            </div>
+          ) : (
+            <div className="admin-orders-list">
+              {completedOrders.map(order => (
+                <div key={order.id} className="admin-order-card admin-order-card--completed">
+                  <div className="admin-order-number-row">
+                    <Hash size={14} />
+                    <span className="admin-order-number">{order.orderNumber}</span>
+                    <span className="admin-order-date">
+                      {order.completedAt?.toDate
+                        ? order.completedAt.toDate().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })
+                        : "Recently"}
+                    </span>
+                    <span className="admin-badge-sold">Sold</span>
+                  </div>
 
-      {completedLoading ? (
-        <div style={{ display: 'flex', justifyContent: 'center', padding: '40px 0' }}>
-          <div className="loading-spinner"></div>
-        </div>
-      ) : completedOrders.length === 0 ? (
-        <div className="empty-state">
-          <div className="empty-icon"><ClipboardList size={32} /></div>
-          <h3>No completed orders yet</h3>
-          <p>Completed transactions will appear here with their unique order numbers.</p>
-        </div>
-      ) : (
-        <div className="admin-orders-list">
-          {completedOrders.map(order => (
-            <div key={order.id} className="admin-order-card admin-order-card--completed">
-              {/* Order Number Banner */}
-              <div className="admin-order-number-row">
-                <Hash size={14} />
-                <span className="admin-order-number">{order.orderNumber}</span>
-                <span className="admin-order-date">
-                  {order.completedAt?.toDate
-                    ? order.completedAt.toDate().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })
-                    : "Recently"}
-                </span>
-                <span className="admin-badge-sold">Sold</span>
-              </div>
-
-              {/* Item Info */}
-              <div className="admin-order-section">
-                <h3 className="admin-section-heading">Item Details</h3>
-                <div className="admin-item-row">
-                  {order.itemImage ? (
-                    <img src={order.itemImage} alt={order.itemTitle} className="admin-item-thumb" />
-                  ) : (
-                    <div className="admin-item-thumb-placeholder">
-                      <Package size={24} color="var(--text-muted)" />
+                  <div className="admin-order-section">
+                    <h3 className="admin-section-heading">Item Details</h3>
+                    <div className="admin-item-row">
+                      {order.itemImage ? (
+                        <img src={order.itemImage} alt={order.itemTitle} className="admin-item-thumb" />
+                      ) : (
+                        <div className="admin-item-thumb-placeholder">
+                          <Package size={24} color="var(--text-muted)" />
+                        </div>
+                      )}
+                      <div>
+                        <h4 className="admin-item-title">{order.itemTitle}</h4>
+                        <span className="admin-item-price">₹{order.itemPrice}</span>
+                        {order.itemCategory && <p className="admin-item-category">Category: {order.itemCategory}</p>}
+                      </div>
                     </div>
-                  )}
-                  <div>
-                    <h4 className="admin-item-title">{order.itemTitle}</h4>
-                    <span className="admin-item-price">₹{order.itemPrice}</span>
-                    {order.itemCategory && <p className="admin-item-category">Category: {order.itemCategory}</p>}
+                  </div>
+
+                  <div className="admin-order-section">
+                    <h3 className="admin-section-heading"><User size={15} /> Seller</h3>
+                    <p className="admin-contact-name">{order.sellerName}</p>
+                    <p className="admin-contact-detail"><Mail size={13} /> {order.sellerEmail}</p>
+                    <p className="admin-contact-detail"><Phone size={13} /> {order.sellerPhone}</p>
+                  </div>
+
+                  <div className="admin-order-section">
+                    <h3 className="admin-section-heading"><User size={15} /> Buyer</h3>
+                    <p className="admin-contact-name">{order.buyerName}</p>
+                    <p className="admin-contact-detail"><Mail size={13} /> {order.buyerEmail}</p>
+                    <p className="admin-contact-detail"><Phone size={13} /> {order.buyerPhone}</p>
                   </div>
                 </div>
-              </div>
-
-              {/* Seller Info */}
-              <div className="admin-order-section">
-                <h3 className="admin-section-heading"><User size={15} /> Seller</h3>
-                <p className="admin-contact-name">{order.sellerName}</p>
-                <p className="admin-contact-detail"><Mail size={13} /> {order.sellerEmail}</p>
-                <p className="admin-contact-detail"><Phone size={13} /> {order.sellerPhone}</p>
-              </div>
-
-              {/* Buyer Info */}
-              <div className="admin-order-section">
-                <h3 className="admin-section-heading"><User size={15} /> Buyer</h3>
-                <p className="admin-contact-name">{order.buyerName}</p>
-                <p className="admin-contact-detail"><Mail size={13} /> {order.buyerEmail}</p>
-                <p className="admin-contact-detail"><Phone size={13} /> {order.buyerPhone}</p>
-              </div>
+              ))}
             </div>
-          ))}
+          )}
         </div>
       )}
     </div>
