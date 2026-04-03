@@ -1,12 +1,22 @@
 import { useState, useEffect } from "react";
-import { collection, query, where, getDocs, doc, getDoc, updateDoc, deleteField, addDoc, serverTimestamp } from "firebase/firestore";
+import { collection, query, where, getDocs, doc, getDoc, updateDoc, deleteField, addDoc, serverTimestamp, orderBy } from "firebase/firestore";
 import { db } from "../firebase";
-import { Shield, Package, Phone, Mail, User, XCircle, CheckCircle } from "lucide-react";
+import { Shield, Package, Phone, Mail, User, XCircle, CheckCircle, ClipboardList, Hash } from "lucide-react";
 import toast from "react-hot-toast";
+
+// Generate a human-readable unique order number: PM-YYYYMMDD-XXXXX
+function generateOrderNumber() {
+  const now = new Date();
+  const datePart = now.toISOString().slice(0, 10).replace(/-/g, "");
+  const randPart = Math.random().toString(36).toUpperCase().slice(2, 7);
+  return `PM-${datePart}-${randPart}`;
+}
 
 function AdminDashboard() {
   const [orders, setOrders] = useState([]);
+  const [completedOrders, setCompletedOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [completedLoading, setCompletedLoading] = useState(true);
 
   async function handleUnreserve(order) {
     if (!window.confirm("Are you sure you want to cancel this reservation? The item will be made available to everyone again.")) return;
@@ -37,16 +47,53 @@ function AdminDashboard() {
     }
   }
 
-  async function handleMarkComplete(orderId) {
+  async function handleMarkComplete(order) {
     if (!window.confirm("Are you sure you want to mark this transaction as complete? This will finalize the sale and remove the item from the marketplace.")) return;
     try {
-      const itemRef = doc(db, "items", orderId);
+      const itemRef = doc(db, "items", order.id);
       await updateDoc(itemRef, { status: "sold" });
-      setOrders(prev => prev.filter(o => o.id !== orderId));
-      toast.success("Transaction marked as complete!");
+
+      // Save a permanent completed order record
+      const orderNumber = generateOrderNumber();
+      await addDoc(collection(db, "completedOrders"), {
+        orderNumber,
+        itemId: order.id,
+        itemTitle: order.title,
+        itemPrice: order.price,
+        itemImage: order.image || null,
+        itemCategory: order.category || null,
+        sellerId: order.sellerId || null,
+        sellerName: order.sellerName || "Unknown",
+        sellerEmail: order.sellerEmail || "N/A",
+        sellerPhone: order.sellerPhone || "N/A",
+        buyerId: order.reservedBy || null,
+        buyerName: order.reservedByName || "Unknown",
+        buyerEmail: order.reservedByEmail || "N/A",
+        buyerPhone: order.buyerPhone || "N/A",
+        completedAt: serverTimestamp(),
+      });
+
+      setOrders(prev => prev.filter(o => o.id !== order.id));
+      toast.success(`Transaction complete! Order #${orderNumber}`);
+
+      // Refresh completed orders list
+      fetchCompletedOrders();
     } catch (error) {
       console.error("Error completing transaction:", error);
       toast.error("Failed to mark transaction as complete");
+    }
+  }
+
+  async function fetchCompletedOrders() {
+    setCompletedLoading(true);
+    try {
+      const q = query(collection(db, "completedOrders"), orderBy("completedAt", "desc"));
+      const snap = await getDocs(q);
+      setCompletedOrders(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    } catch (error) {
+      console.error("Error fetching completed orders:", error);
+    } finally {
+      setCompletedLoading(false);
     }
   }
 
@@ -87,7 +134,9 @@ function AdminDashboard() {
         setLoading(false);
       }
     }
+
     fetchOrders();
+    fetchCompletedOrders();
   }, []);
 
   return (
@@ -102,6 +151,13 @@ function AdminDashboard() {
         </div>
         <h2 className="admin-subtitle gradient-text">Dashboard</h2>
         <p className="admin-desc">Mediate active transactions and view complete contact details</p>
+      </div>
+
+      {/* ── Active Reservations ───────────────────────────────────────────── */}
+      <div className="admin-section-label">
+        <Package size={18} />
+        <span>Active Reservations</span>
+        <span className="admin-section-count">{orders.length}</span>
       </div>
 
       {loading ? (
@@ -158,9 +214,81 @@ function AdminDashboard() {
                 <button className="admin-btn-cancel" onClick={() => handleUnreserve(order)}>
                   <XCircle size={15} /> Cancel &amp; Unreserve
                 </button>
-                <button className="admin-btn-complete" onClick={() => handleMarkComplete(order.id)}>
+                <button className="admin-btn-complete" onClick={() => handleMarkComplete(order)}>
                   <CheckCircle size={15} /> Mark as Complete
                 </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* ── Completed Orders ─────────────────────────────────────────────── */}
+      <div className="admin-section-label" style={{ marginTop: 'var(--space-3xl)' }}>
+        <ClipboardList size={18} />
+        <span>Completed Orders</span>
+        <span className="admin-section-count">{completedOrders.length}</span>
+      </div>
+
+      {completedLoading ? (
+        <div style={{ display: 'flex', justifyContent: 'center', padding: '40px 0' }}>
+          <div className="loading-spinner"></div>
+        </div>
+      ) : completedOrders.length === 0 ? (
+        <div className="empty-state">
+          <div className="empty-icon"><ClipboardList size={32} /></div>
+          <h3>No completed orders yet</h3>
+          <p>Completed transactions will appear here with their unique order numbers.</p>
+        </div>
+      ) : (
+        <div className="admin-orders-list">
+          {completedOrders.map(order => (
+            <div key={order.id} className="admin-order-card admin-order-card--completed">
+              {/* Order Number Banner */}
+              <div className="admin-order-number-row">
+                <Hash size={14} />
+                <span className="admin-order-number">{order.orderNumber}</span>
+                <span className="admin-order-date">
+                  {order.completedAt?.toDate
+                    ? order.completedAt.toDate().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })
+                    : "Recently"}
+                </span>
+                <span className="admin-badge-sold">Sold</span>
+              </div>
+
+              {/* Item Info */}
+              <div className="admin-order-section">
+                <h3 className="admin-section-heading">Item Details</h3>
+                <div className="admin-item-row">
+                  {order.itemImage ? (
+                    <img src={order.itemImage} alt={order.itemTitle} className="admin-item-thumb" />
+                  ) : (
+                    <div className="admin-item-thumb-placeholder">
+                      <Package size={24} color="var(--text-muted)" />
+                    </div>
+                  )}
+                  <div>
+                    <h4 className="admin-item-title">{order.itemTitle}</h4>
+                    <span className="admin-item-price">₹{order.itemPrice}</span>
+                    {order.itemCategory && <p className="admin-item-category">Category: {order.itemCategory}</p>}
+                  </div>
+                </div>
+              </div>
+
+              {/* Seller Info */}
+              <div className="admin-order-section">
+                <h3 className="admin-section-heading"><User size={15} /> Seller</h3>
+                <p className="admin-contact-name">{order.sellerName}</p>
+                <p className="admin-contact-detail"><Mail size={13} /> {order.sellerEmail}</p>
+                <p className="admin-contact-detail"><Phone size={13} /> {order.sellerPhone}</p>
+              </div>
+
+              {/* Buyer Info */}
+              <div className="admin-order-section">
+                <h3 className="admin-section-heading"><User size={15} /> Buyer</h3>
+                <p className="admin-contact-name">{order.buyerName}</p>
+                <p className="admin-contact-detail"><Mail size={13} /> {order.buyerEmail}</p>
+                <p className="admin-contact-detail"><Phone size={13} /> {order.buyerPhone}</p>
               </div>
             </div>
           ))}
