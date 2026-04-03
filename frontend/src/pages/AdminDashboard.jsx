@@ -1,12 +1,12 @@
 import { useState, useEffect, useMemo } from "react";
 import {
   collection, query, where, getDocs, doc, getDoc,
-  updateDoc, deleteField, addDoc, serverTimestamp, orderBy
+  updateDoc, deleteField, addDoc, serverTimestamp, orderBy, deleteDoc
 } from "firebase/firestore";
 import { db } from "../firebase";
 import {
   Shield, Package, Phone, Mail, User, XCircle, CheckCircle,
-  ClipboardList, Hash, Users, Search, Calendar, RefreshCw, UserX, UserCheck
+  ClipboardList, Hash, Users, Search, Calendar, RefreshCw, UserX, UserCheck, AlertTriangle, Trash2
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -24,6 +24,8 @@ function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [completedLoading, setCompletedLoading] = useState(true);
   const [usersLoading, setUsersLoading] = useState(true);
+  const [reports, setReports] = useState([]);
+  const [reportsLoading, setReportsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("active");
   const [userSearch, setUserSearch] = useState("");
 
@@ -171,6 +173,49 @@ function AdminDashboard() {
     }
   }
 
+  async function fetchReports() {
+    setReportsLoading(true);
+    try {
+      const q = query(collection(db, "reports"), orderBy("createdAt", "desc"));
+      const snap = await getDocs(q);
+      const reportsData = await Promise.all(snap.docs.map(async (docSnap) => {
+        const data = docSnap.data();
+        let reporterName = "Unknown";
+        let sellerName = "Unknown";
+        try {
+          if (data.reporterId) {
+            const rd = await getDoc(doc(db, "users", data.reporterId));
+            if (rd.exists()) reporterName = rd.data().name || rd.data().email || "Unknown";
+          }
+        } catch (e) {}
+        try {
+          if (data.sellerId) {
+            const sd = await getDoc(doc(db, "users", data.sellerId));
+            if (sd.exists()) sellerName = sd.data().name || sd.data().email || "Unknown";
+          }
+        } catch (e) {}
+        return { id: docSnap.id, ...data, reporterName, sellerName };
+      }));
+      setReports(reportsData);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setReportsLoading(false);
+    }
+  }
+
+  async function handleDeleteReport(reportId) {
+    if (!window.confirm("Are you sure you want to delete this report?")) return;
+    try {
+      await deleteDoc(doc(db, "reports", reportId));
+      setReports(prev => prev.filter(r => r.id !== reportId));
+      toast.success("Report deleted successfully.");
+    } catch (error) {
+      console.error("Error deleting report:", error);
+      toast.error("Failed to delete report.");
+    }
+  }
+
   useEffect(() => {
     async function fetchOrders() {
       setLoading(true);
@@ -208,12 +253,14 @@ function AdminDashboard() {
     fetchOrders();
     fetchCompletedOrders();
     fetchUsers();
+    fetchReports();
   }, []);
 
   const NAV_ITEMS = [
     { id: "active",    label: "Active Reservations", icon: <Package size={18} />,     count: orders.length },
     { id: "completed", label: "Completed Orders",     icon: <ClipboardList size={18} />, count: completedOrders.length },
     { id: "users",     label: "Users",                icon: <Users size={18} />,        count: users.length },
+    { id: "reports",   label: "Reports",              icon: <AlertTriangle size={18} />, count: reports.length },
   ];
 
   return (
@@ -437,6 +484,56 @@ function AdminDashboard() {
                   </div>
                 ))}
               </div>
+            )}
+          </div>
+        )}
+
+        {/* ── Reports ────────────────────────────────────────────────────── */}
+        {activeTab === "reports" && (
+          <div>
+            <div className="admin-panel-header">
+              <div>
+                <h2 className="admin-panel-title">Reports</h2>
+                <p className="admin-panel-desc">All item reports submitted by users.</p>
+              </div>
+              <button className="admin-refresh-btn" onClick={fetchReports} disabled={reportsLoading}>
+                <RefreshCw size={15} className={reportsLoading ? "spinning" : ""} />
+                Refresh
+              </button>
+            </div>
+            
+            {reportsLoading ? (
+               <div className="admin-center"><div className="loading-spinner" /></div>
+            ) : reports.length === 0 ? (
+               <div className="empty-state">
+                 <div className="empty-icon"><AlertTriangle size={32} /></div>
+                 <h3>No reports</h3>
+                 <p>No user reports have been submitted yet.</p>
+               </div>
+            ) : (
+               <div className="admin-reports-list">
+                 {reports.map(report => (
+                   <div key={report.id} className="admin-report-card" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "var(--space-md)" }}>
+                     <div style={{ flex: 1 }}>
+                       <p className="admin-report-message">"{report.message}"</p>
+                       <div className="admin-report-details">
+                         <div><strong>Item:</strong> {report.itemTitle}</div>
+                         <div><strong>Reporter:</strong> {report.reporterName}</div>
+                         <div><strong>Seller:</strong> {report.sellerName}</div>
+                         {report.createdAt && <div><strong>Date:</strong> {new Date(report.createdAt.toDate ? report.createdAt.toDate() : report.createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}</div>}
+                       </div>
+                     </div>
+                     <button
+                       className="admin-block-btn"
+                       onClick={() => handleDeleteReport(report.id)}
+                       title="Delete Report"
+                       style={{ margin: 0, padding: "8px", borderColor: "var(--border-subtle)", color: "var(--text-secondary)", background: "var(--bg-secondary)" }}
+                     >
+                       <Trash2 size={16} />
+                     </button>
+                   </div>
+                 ))}
+               </div>
             )}
           </div>
         )}

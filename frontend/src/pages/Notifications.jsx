@@ -1,7 +1,7 @@
 import { collection, query, where, orderBy, onSnapshot, doc, updateDoc, writeBatch } from "firebase/firestore";
 import { db } from "../firebase";
 import { useEffect, useState } from "react";
-import { Bell, CheckCheck, ShoppingCart, Mail, Clock, Phone } from "lucide-react";
+import { Bell, CheckCheck, ShoppingCart, Mail, Clock, Phone, AlertTriangle } from "lucide-react";
 import toast from "react-hot-toast";
 import { useAuth } from "../context/AuthContext";
 
@@ -19,20 +19,50 @@ function Notifications() {
       orderBy("createdAt", "desc")
     );
 
+    let userNotifs = [];
+    let adminNotifs = [];
+
+    const updateNotifs = () => {
+      const merged = [...userNotifs, ...adminNotifs].sort((a, b) => {
+        const timeA = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
+        const timeB = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
+        return timeB - timeA;
+      });
+      setNotifications(merged);
+    };
+
     const unsubUser = onSnapshot(qUser, (snapshot) => {
-      const userNotifs = snapshot.docs.map((doc) => ({
+      userNotifs = snapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
       }));
-      setNotifications(userNotifs);
+      updateNotifs();
       setLoading(false);
     }, (error) => {
       console.error("User Notifications listener error:", error);
       setLoading(false);
     });
 
-    return () => unsubUser();
-  }, [currentUser]);
+    let unsubAdmin = null;
+    if (isAdmin) {
+      const qAdmin = query(
+        collection(db, "notifications"),
+        where("recipientId", "==", "admin"),
+        orderBy("createdAt", "desc")
+      );
+      unsubAdmin = onSnapshot(qAdmin, (snapshot) => {
+        adminNotifs = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+        updateNotifs();
+      }, (error) => {
+        console.error("Admin Notifications listener error:", error);
+      });
+    }
+
+    return () => {
+      unsubUser();
+      if (unsubAdmin) unsubAdmin();
+    };
+  }, [currentUser, isAdmin]);
 
   async function markAsRead(notifId) {
     try {
@@ -157,14 +187,22 @@ function Notifications() {
                   color: notif.read ? "var(--text-muted)" : "var(--accent-primary)",
                 }}
               >
-                <ShoppingCart size={20} />
+                {notif.type === "new_report" ? <AlertTriangle size={20} /> : <ShoppingCart size={20} />}
               </div>
 
               {/* Content */}
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "var(--space-md)" }}>
                   <p style={{ margin: 0, fontWeight: notif.read ? 400 : 600, color: "var(--text-primary)", fontSize: "var(--font-base)" }}>
-                    {notif.type === "item_unreserved" ? (
+                    {notif.type === "new_report" ? (
+                      <>
+                        New report for item <strong style={{ color: "var(--accent-primary)" }}>"{notif.itemTitle}"</strong>
+                        <br />
+                        <span style={{ fontSize: "var(--font-sm)", fontWeight: "normal", fontStyle: "italic", color: "var(--danger)" }}>
+                          "{notif.message}"
+                        </span>
+                      </>
+                    ) : notif.type === "item_unreserved" ? (
                       <>
                         Your item <strong style={{ color: "var(--accent-primary)" }}>"{notif.itemTitle}"</strong> has been unreserved and is available in the marketplace again.
                       </>

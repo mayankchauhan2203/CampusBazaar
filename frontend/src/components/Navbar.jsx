@@ -9,6 +9,7 @@ function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [adminUnreadCount, setAdminUnreadCount] = useState(0);
   const location = useLocation();
   const { currentUser, isAdmin, userData } = useAuth();
 
@@ -26,6 +27,7 @@ function Navbar() {
   useEffect(() => {
     if (!currentUser) {
       setUnreadCount(0);
+      setAdminUnreadCount(0);
       return;
     }
 
@@ -41,8 +43,29 @@ function Navbar() {
       console.error("Notification count listener error:", error);
     });
 
-    return () => unsubUser();
-  }, [currentUser]);
+    let unsubAdmin = null;
+    if (isAdmin) {
+      const qAdmin = query(
+        collection(db, "notifications"),
+        where("recipientId", "==", "admin"),
+        where("read", "==", false)
+      );
+      unsubAdmin = onSnapshot(qAdmin, (snapshot) => {
+        setAdminUnreadCount(snapshot.size);
+      }, (error) => {
+        console.error("Admin notification count listener error:", error);
+      });
+    } else {
+      setAdminUnreadCount(0);
+    }
+
+    return () => {
+      unsubUser();
+      if (unsubAdmin) unsubAdmin();
+    };
+  }, [currentUser, isAdmin]);
+
+  const totalUnread = unreadCount + adminUnreadCount;
 
   const isActive = (path) => location.pathname === path;
 
@@ -81,8 +104,8 @@ function Navbar() {
               <Link to="/notifications" className={`nav-link nav-link-bell ${isActive("/notifications") ? "active" : ""}`}>
                 <div className="bell-wrapper">
                   <Bell size={16} />
-                  {unreadCount > 0 && (
-                    <span className="notif-badge">{unreadCount > 9 ? "9+" : unreadCount}</span>
+                  {totalUnread > 0 && (
+                    <span className="notif-badge">{totalUnread > 9 ? "9+" : totalUnread}</span>
                   )}
                 </div>
               </Link>
@@ -144,8 +167,8 @@ function Navbar() {
             <Link to="/notifications" className={`nav-link ${isActive("/notifications") ? "active" : ""}`}>
               <div className="bell-wrapper">
                 <Bell size={20} />
-                {unreadCount > 0 && (
-                  <span className="notif-badge">{unreadCount > 9 ? "9+" : unreadCount}</span>
+                {totalUnread > 0 && (
+                  <span className="notif-badge">{totalUnread > 9 ? "9+" : totalUnread}</span>
                 )}
               </div>
               Notifications

@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { doc, getDoc, updateDoc, addDoc, collection, serverTimestamp } from "firebase/firestore";
+import { doc, getDoc, updateDoc, addDoc, collection, serverTimestamp, query, where, getDocs, deleteField } from "firebase/firestore";
 import { db } from "../firebase";
 import { useAuth } from "../context/AuthContext";
-import { Package, ShoppingCart, CheckCircle, User, ArrowLeft } from "lucide-react";
+import { Package, ShoppingCart, CheckCircle, User, ArrowLeft, AlertTriangle } from "lucide-react";
 import toast from "react-hot-toast";
 
 function ItemDetails() {
@@ -17,12 +17,31 @@ function ItemDetails() {
   const [reservePhone, setReservePhone] = useState("");
   const [confirmText, setConfirmText] = useState("");
 
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportMessage, setReportMessage] = useState("");
+  const [reportSubmitting, setReportSubmitting] = useState(false);
+  const [hasReported, setHasReported] = useState(false);
+
   useEffect(() => {
     async function fetchItem() {
       try {
         const itemSnap = await getDoc(doc(db, "items", id));
         if (itemSnap.exists()) {
           setItem({ id: itemSnap.id, ...itemSnap.data() });
+          
+          if (currentUser) {
+            const q = query(
+              collection(db, "reports"),
+              where("itemId", "==", id),
+              where("reporterId", "==", currentUser.uid)
+            );
+            // We use getDocs because reports shouldn't change too often to need a real-time listener for the user just to disable the button
+            getDocs(q).then(reportSnap => {
+              if (!reportSnap.empty) {
+                setHasReported(true);
+              }
+            }).catch(e => console.error("Error checking report status", e));
+          }
         } else {
           toast.error("Item not found");
           navigate("/marketplace");
@@ -88,11 +107,79 @@ function ItemDetails() {
       });
 
       toast.success("Item reserved successfully!");
-      setItem(prev => ({ ...prev, status: "reserved" }));
+      // Close modal on success
+      toast.success("Reservation confirmed!");
       setShowReserveModal(false);
     } catch (error) {
-      console.error("Error reserving item:", error);
-      toast.error("Failed to reserve item");
+      console.error(error);
+      toast.error("Failed to reserve. Try again.");
+    }
+  }
+
+  async function handleReportSubmit(e) {
+    e.preventDefault();
+    if (!reportMessage.trim()) return;
+
+    if (!currentUser) {
+      toast.error("You must be logged in to report an item.");
+      return;
+    }
+
+    setReportSubmitting(true);
+    try {
+      await addDoc(collection(db, "reports"), {
+        itemId: item.id,
+        itemTitle: item.title,
+        sellerId: item.sellerId,
+        reporterId: currentUser.uid,
+        message: reportMessage,
+        status: "pending",
+        createdAt: serverTimestamp()
+      });
+
+      // If the user currently has this item reserved, cancel their reservation automatically
+      if (item.status === "reserved" && item.reservedBy === currentUser.uid) {
+        const itemRef = doc(db, "items", item.id);
+        await updateDoc(itemRef, {
+          status: "available",
+          reservedBy: deleteField(),
+          reservedByName: deleteField(),
+          reservedByEmail: deleteField()
+        });
+
+        await addDoc(collection(db, "notifications"), {
+          recipientId: item.sellerId,
+          type: "item_unreserved",
+          itemId: item.id,
+          itemTitle: item.title,
+          read: false,
+          createdAt: serverTimestamp()
+        });
+
+        setItem(prev => ({ ...prev, status: "available" }));
+      }
+
+      // Notify admins
+      await addDoc(collection(db, "notifications"), {
+        recipientId: "admin",
+        type: "new_report",
+        itemId: item.id,
+        itemTitle: item.title,
+        reporterId: currentUser.uid,
+        message: reportMessage,
+        read: false,
+        createdAt: serverTimestamp()
+      });
+
+      setHasReported(true);
+      toast.success("Report submitted to admins.");
+      setShowReportModal(false);
+      setReportMessage("");
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to submit report. Please try again.");
+    } finally {
+      setReportSubmitting(false);
     }
   }
 
@@ -152,15 +239,28 @@ function ItemDetails() {
               <button
                 className="btn btn-primary item-details-btn"
                 onClick={handleReserveClick}
-                disabled={isBlocked}
+                disabled={isBlocked || hasReported}
               >
                 <ShoppingCart size={20} />
-                Reserve Now
+                {hasReported ? "Cannot reserve (Reported)" : "Reserve Now"}
               </button>
             ) : (
               <button className="buy-btn buy-btn-reserved item-details-btn" disabled>
                 <CheckCircle size={20} />
                 Reserved
+              </button>
+            )}
+            
+            {/* Report Button */}
+            {currentUser?.uid !== item.sellerId && (
+              <button 
+                className="btn-cancel" 
+                style={{ marginTop: "12px", width: "100%", display: "flex", justifyContent: "center", gap: "8px", opacity: hasReported ? 0.6 : 1, cursor: hasReported ? "not-allowed" : "pointer" }}
+                onClick={() => !hasReported && setShowReportModal(true)}
+                disabled={hasReported}
+              >
+                <AlertTriangle size={16} />
+                {hasReported ? "Reported" : "Report Item"}
               </button>
             )}
           </div>
@@ -200,6 +300,37 @@ function ItemDetails() {
                 </button>
                 <button type="submit" className="btn-save">
                   Confirm
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Report Modal */}
+      {showReportModal && (
+        <div className="reserve-modal-overlay">
+          <div className="reserve-modal">
+            <h2 className="reserve-modal-title">Report Item</h2>
+            <p className="reserve-modal-subtitle">Briefly explain why this item is inappropriate or violates PeerMart policies.</p>
+            <form onSubmit={handleReportSubmit}>
+              <div className="form-group" style={{ marginBottom: '24px' }}>
+                <label>Reason for reporting</label>
+                <textarea 
+                  value={reportMessage}
+                  onChange={(e) => setReportMessage(e.target.value)}
+                  placeholder="e.g. Scammer, inappropriate content..."
+                  required 
+                  rows={4}
+                  style={{ width: "100%", padding: "10px", borderRadius: "8px", border: "1px solid var(--border-subtle)", background: "var(--bg-secondary)", color: "var(--text-primary)", fontFamily: "var(--font-sans)", resize: "vertical" }}
+                />
+              </div>
+              <div className="edit-actions">
+                <button type="button" className="btn-cancel" onClick={() => setShowReportModal(false)} disabled={reportSubmitting}>
+                  Cancel
+                </button>
+                <button type="submit" className="btn-save" disabled={reportSubmitting || !reportMessage.trim()} style={{ background: "var(--danger)" }}>
+                  {reportSubmitting ? "Submitting..." : "Submit Report"}
                 </button>
               </div>
             </form>
