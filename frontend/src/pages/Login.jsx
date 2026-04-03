@@ -147,8 +147,8 @@ function Login() {
               <label>Full Name</label>
               <div className="input-with-icon">
                 <UserIcon size={18} className="input-icon" />
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   placeholder="Student Name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
@@ -162,8 +162,8 @@ function Login() {
             <label>IITD Email</label>
             <div className="input-with-icon">
               <Mail size={18} className="input-icon" />
-              <input 
-                type="email" 
+              <input
+                type="email"
                 placeholder="email@iitd.ac.in"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -184,8 +184,8 @@ function Login() {
             </div>
             <div className="input-with-icon">
               <Shield size={18} className="input-icon" />
-              <input 
-                type="password" 
+              <input
+                type="password"
                 placeholder="Password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -195,9 +195,9 @@ function Login() {
             </div>
           </div>
 
-          <button 
-            type="submit" 
-            className="login-btn" 
+          <button
+            type="submit"
+            className="login-btn"
             disabled={loading}
             style={{ marginTop: 'var(--space-xl)', background: 'var(--accent-gradient)', color: '#fff', border: 'none' }}
           >
@@ -208,8 +208,8 @@ function Login() {
         <div className="login-toggle">
           <p>
             {isRegistering ? "Already have an account?" : "New to PeerMart?"}
-            <button 
-              type="button" 
+            <button
+              type="button"
               className="toggle-btn"
               onClick={() => {
                 setIsRegistering(!isRegistering);

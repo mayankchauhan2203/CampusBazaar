@@ -1,11 +1,11 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
-  User, Settings, Bell, Shield, ChevronRight, Package, Star, ShoppingBag,
-  LogOut, Edit3, Camera, Save, X, Phone, AlignLeft, Trash2, Eye, EyeOff
+  User, Shield, ChevronRight, Package, Star, ShoppingBag,
+  LogOut, Edit3, Save, X, Phone, AlignLeft, Trash2, Eye, EyeOff
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
-import { db, storage } from "../firebase";
+import { db } from "../firebase";
 import { doc, getDoc, setDoc, query, collection, where, getDocs } from "firebase/firestore";
 import { updateProfile } from "firebase/auth";
 import toast from "react-hot-toast";
@@ -13,7 +13,6 @@ import toast from "react-hot-toast";
 function Profile() {
   const { currentUser, logout, deleteAccount, changeUserPassword, userData, resetPassword } = useAuth();
   const navigate = useNavigate();
-  const fileInputRef = useRef(null);
 
   // View vs Edit Mode
   const [isEditing, setIsEditing] = useState(false);
@@ -31,9 +30,7 @@ function Profile() {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [bio, setBio] = useState("");
-  const [photoFile, setPhotoFile] = useState(null);
-  const [photoPreview, setPhotoPreview] = useState(null);
-  
+
   // Real-time Stats
   const [listingsCount, setListingsCount] = useState(0);
   const [boughtCount, setBoughtCount] = useState(0);
@@ -41,7 +38,7 @@ function Profile() {
   // Derived state
   const displayName = currentUser?.displayName || "Student User";
   const initial = displayName.charAt(0).toUpperCase();
-  const currentPhotoURL = photoPreview || userData?.photoURL || currentUser?.photoURL;
+  const currentPhotoURL = currentUser?.photoURL || null;
 
   useEffect(() => {
     async function fetchUserData() {
@@ -139,71 +136,24 @@ function Profile() {
     }
   }
 
-  function handleImageClick() {
-    if (isEditing && fileInputRef.current) {
-      fileInputRef.current.click();
-    }
-  }
-
-  function handleImageChange(e) {
-    const file = e.target.files[0];
-    if (file) {
-      if (file.size > 5 * 1024 * 1024) { // 5MB limit
-        toast.error("Image must be less than 5MB");
-        return;
-      }
-      setPhotoFile(file);
-      setPhotoPreview(URL.createObjectURL(file));
-    }
-  }
-
   async function handleSaveProfile() {
     setSaving(true);
-    let newPhotoURL = currentUser.photoURL;
-
     try {
-      // 1. Upload photo if selected
-      if (photoFile) {
-        const formData = new FormData();
-        formData.append('file', photoFile);
-        formData.append('upload_preset', 'duds5cijd');
-        
-        const res = await fetch('https://api.cloudinary.com/v1_1/duds5cijd/image/upload', {
-          method: 'POST',
-          body: formData
-        });
-        
-        const data = await res.json();
-        if (data.secure_url) {
-          newPhotoURL = data.secure_url;
-        } else {
-          throw new Error(data.error?.message || 'Cloudinary upload failed');
-        }
+      // Update Firebase Auth display name
+      if (name !== currentUser.displayName) {
+        await updateProfile(currentUser, { displayName: name });
       }
 
-      // 2. Update Firebase Auth Profile (Name & Photo)
-      if (name !== currentUser.displayName || newPhotoURL !== currentUser.photoURL) {
-        await updateProfile(currentUser, {
-          displayName: name,
-          photoURL: newPhotoURL
-        });
-      }
-
-      // 3. Save extended details to Firestore
+      // Save name, phone, bio to Firestore
       const userRef = doc(db, "users", currentUser.uid);
       await setDoc(userRef, {
         phone: phone,
         bio: bio,
-        photoURL: newPhotoURL || null,
         updatedAt: new Date().toISOString()
       }, { merge: true });
 
       toast.success("Profile updated successfully!");
       setIsEditing(false);
-
-      // Clear tracking variables
-      setPhotoFile(null);
-      setPhotoPreview(null);
     } catch (error) {
       console.error(error);
       toast.error("Failed to update profile");
@@ -213,10 +163,7 @@ function Profile() {
   }
 
   function cancelEdit() {
-    // Revert state
     setName(currentUser?.displayName || "");
-    setPhotoPreview(null);
-    setPhotoFile(null);
     setIsEditing(false);
   }
 
@@ -238,10 +185,7 @@ function Profile() {
           </button>
         )}
 
-        <div
-          className={`profile-avatar ${isEditing ? 'editable' : ''}`}
-          onClick={handleImageClick}
-        >
+        <div className="profile-avatar">
           {currentPhotoURL ? (
             <img
               src={currentPhotoURL}
@@ -251,20 +195,6 @@ function Profile() {
           ) : (
             <span>{initial}</span>
           )}
-
-          {isEditing && (
-            <div className="avatar-overlay">
-              <Camera size={24} color="white" />
-            </div>
-          )}
-
-          <input
-            type="file"
-            ref={fileInputRef}
-            onChange={handleImageChange}
-            accept="image/*"
-            style={{ display: 'none' }}
-          />
         </div>
 
         {isEditing ? (

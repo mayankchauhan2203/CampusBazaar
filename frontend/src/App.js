@@ -21,82 +21,82 @@ function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
-      <div className="app">
-        <Toaster
-          position="top-center"
-          containerStyle={{
-            top: '50%',
-            transform: 'translateY(-50%)'
-          }}
-          toastOptions={{
-            duration: 3000,
-            style: {
-              background: '#1c1a17',
-              color: '#f5f0e8',
-              border: '1px solid rgba(255,255,255,0.1)',
-              borderRadius: '12px',
-              fontSize: '14px',
-              fontFamily: 'Inter, sans-serif',
-            },
-            success: {
-              iconTheme: {
-                primary: '#4ade80',
-                secondary: '#1c1a17',
+        <div className="app">
+          <Toaster
+            position="top-center"
+            containerStyle={{
+              top: '50%',
+              transform: 'translateY(-50%)'
+            }}
+            toastOptions={{
+              duration: 3000,
+              style: {
+                background: '#1c1a17',
+                color: '#f5f0e8',
+                border: '1px solid rgba(255,255,255,0.1)',
+                borderRadius: '12px',
+                fontSize: '14px',
+                fontFamily: 'Inter, sans-serif',
               },
-            },
-            error: {
-              iconTheme: {
-                primary: '#f87171',
-                secondary: '#1c1a17',
+              success: {
+                iconTheme: {
+                  primary: '#4ade80',
+                  secondary: '#1c1a17',
+                },
               },
-            },
-          }}
-        />
-        <Navbar />
-        <main className="app-content">
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/admin-dashboard" element={
-              <ProtectedRoute adminOnly={true}>
-                <AdminDashboard />
-              </ProtectedRoute>
-            } />
-            <Route path="/marketplace" element={
-              <ProtectedRoute>
-                <Marketplace />
-              </ProtectedRoute>
-            } />
-            <Route path="/item/:id" element={
-              <ProtectedRoute>
-                <ItemDetails />
-              </ProtectedRoute>
-            } />
-            <Route path="/post-item" element={
-              <ProtectedRoute>
-                <PostItem />
-              </ProtectedRoute>
-            } />
-            <Route path="/profile" element={
-              <ProtectedRoute>
-                <Profile />
-              </ProtectedRoute>
-            } />
-            <Route path="/my-listings" element={
-              <ProtectedRoute>
-                <MyListings />
-              </ProtectedRoute>
-            } />
-            <Route path="/notifications" element={
-              <ProtectedRoute>
-                <Notifications />
-              </ProtectedRoute>
-            } />
-          </Routes>
-        </main>
-        <Footer />
-      </div>
-    </BrowserRouter>
+              error: {
+                iconTheme: {
+                  primary: '#f87171',
+                  secondary: '#1c1a17',
+                },
+              },
+            }}
+          />
+          <Navbar />
+          <main className="app-content">
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/admin-dashboard" element={
+                <ProtectedRoute adminOnly={true}>
+                  <AdminDashboard />
+                </ProtectedRoute>
+              } />
+              <Route path="/marketplace" element={
+                <ProtectedRoute>
+                  <Marketplace />
+                </ProtectedRoute>
+              } />
+              <Route path="/item/:id" element={
+                <ProtectedRoute>
+                  <ItemDetails />
+                </ProtectedRoute>
+              } />
+              <Route path="/post-item" element={
+                <ProtectedRoute>
+                  <PostItem />
+                </ProtectedRoute>
+              } />
+              <Route path="/profile" element={
+                <ProtectedRoute>
+                  <Profile />
+                </ProtectedRoute>
+              } />
+              <Route path="/my-listings" element={
+                <ProtectedRoute>
+                  <MyListings />
+                </ProtectedRoute>
+              } />
+              <Route path="/notifications" element={
+                <ProtectedRoute>
+                  <Notifications />
+                </ProtectedRoute>
+              } />
+            </Routes>
+          </main>
+          <Footer />
+        </div>
+      </BrowserRouter>
     </AuthProvider>
   );
 }
