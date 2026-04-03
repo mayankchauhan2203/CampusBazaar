@@ -26,7 +26,7 @@ function Home() {
           return timeB - timeA;
         });
 
-        setRecentItems(itemsList.slice(0, 7));
+        setRecentItems(itemsList.slice(0, 10));
       } catch (error) {
         console.error("Error fetching homepage recent items:", error);
       }
@@ -72,30 +72,30 @@ function Home() {
               Start Selling
             </Link>
           </div>
+        </div>
 
-          <div className="hero-recent-items">
-            {recentItems.length > 0 ? (
-               recentItems.map(item => (
-                 <div 
-                   key={item.id} 
-                   className="recent-item-card" 
-                   onClick={() => navigate('/marketplace')}
-                 >
-                   <div className="recent-item-image">
-                     {item.image ? (
-                       <img src={item.image} alt={item.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                     ) : (
-                       <Package size={32} color="var(--text-muted)" />
-                     )}
-                   </div>
-                   <div>
-                     <h4 style={{ margin: '0 0 4px 0', fontSize: '14px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: 'var(--text-primary)' }}>{item.title}</h4>
-                     <div className="gradient-text" style={{ fontSize: '16px', fontWeight: 'bold' }}>₹{Math.round(item.price * 1.08)}</div>
-                   </div>
-                 </div>
-               ))
-            ) : null}
-          </div>
+        <div className="hero-recent-items">
+          {recentItems.length > 0 ? (
+              recentItems.map(item => (
+                <div 
+                  key={item.id} 
+                  className="recent-item-card" 
+                  onClick={() => navigate('/marketplace')}
+                >
+                  <div className="recent-item-image">
+                    {item.image ? (
+                      <img src={item.image} alt={item.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    ) : (
+                      <Package size={32} color="var(--text-muted)" />
+                    )}
+                  </div>
+                  <div>
+                    <h4 style={{ margin: '0 0 4px 0', fontSize: '14px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: 'var(--text-primary)' }}>{item.title}</h4>
+                    <div className="gradient-text" style={{ fontSize: '16px', fontWeight: 'bold' }}>₹{Math.round(item.price * 1.08)}</div>
+                  </div>
+                </div>
+              ))
+          ) : null}
         </div>
       </section>
 
