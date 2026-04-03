@@ -9,7 +9,7 @@ import { useAuth } from "../context/AuthContext";
 const CATEGORIES = ["All", "Electronics", "Books", "Furniture", "Clothing", "Sports", "Other"];
 
 function Marketplace() {
-  const { currentUser, userData } = useAuth();
+  const { currentUser, userData, isBlocked } = useAuth();
   const navigate = useNavigate(); // we need to import useNavigate and use it to redirect
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -39,6 +39,9 @@ function Marketplace() {
     if (item.status === "sold") {
       return false; // Hide completed items from marketplace entirely
     }
+    if (item.sellerBlocked) {
+      return false; // Hide items from blocked sellers
+    }
     if (currentUser && item.sellerId === currentUser.uid) {
       return false;
     }
@@ -60,6 +63,21 @@ function Marketplace() {
         </h1>
         <p>Discover great deals from students in your community</p>
       </div>
+
+      {isBlocked && (
+        <div style={{
+          backgroundColor: "rgba(248, 113, 113, 0.15)",
+          border: "1px solid var(--danger)",
+          color: "var(--danger)",
+          padding: "var(--space-md)",
+          borderRadius: "var(--radius-md)",
+          marginBottom: "var(--space-xl)",
+          fontWeight: "600",
+          textAlign: "center"
+        }}>
+          You have been blocked from using the PeerMart services. Contact the admin for more information.
+        </div>
+      )}
 
       {/* Controls */}
       <div className="marketplace-controls">

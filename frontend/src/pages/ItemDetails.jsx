@@ -9,7 +9,7 @@ import toast from "react-hot-toast";
 function ItemDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { currentUser, userData } = useAuth();
+  const { currentUser, userData, isBlocked } = useAuth();
   
   const [item, setItem] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -38,6 +38,10 @@ function ItemDetails() {
   }, [id, navigate]);
 
   function handleReserveClick() {
+    if (isBlocked) {
+      toast.error("Your account has been blocked. Contact the admin.");
+      return;
+    }
     setReservePhone(userData?.phone || "");
     setConfirmText("");
     setShowReserveModal(true);
@@ -45,6 +49,11 @@ function ItemDetails() {
 
   async function handleConfirmReserve(e) {
     e.preventDefault();
+    if (isBlocked) {
+      toast.error("Your account has been blocked. Contact the admin.");
+      setShowReserveModal(false);
+      return;
+    }
     if (reservePhone.replace(/\D/g, '').length !== 10) {
       toast.error("Please enter a valid 10-digit phone number");
       return;
@@ -143,6 +152,7 @@ function ItemDetails() {
               <button
                 className="btn btn-primary item-details-btn"
                 onClick={handleReserveClick}
+                disabled={isBlocked}
               >
                 <ShoppingCart size={20} />
                 Reserve Now

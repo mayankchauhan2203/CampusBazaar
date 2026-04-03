@@ -102,6 +102,21 @@ function PostItem() {
         <p>Fill in the details and your item will be live in seconds.</p>
       </div>
 
+      {isBlocked && (
+        <div style={{
+          backgroundColor: "rgba(248, 113, 113, 0.15)",
+          border: "1px solid var(--danger)",
+          color: "var(--danger)",
+          padding: "var(--space-md)",
+          borderRadius: "var(--radius-md)",
+          marginBottom: "var(--space-xl)",
+          fontWeight: "600",
+          textAlign: "center"
+        }}>
+          You have been blocked from using the PeerMart services. You cannot list new items. Contact the admin for more information.
+        </div>
+      )}
+
       <form onSubmit={handleSubmit} className="post-item-form">
         <div className="form-fields">
           <div className="form-group">
@@ -171,7 +186,7 @@ function PostItem() {
           <button
             type="submit"
             className="submit-btn"
-            disabled={submitting || !title.trim() || !price || !category || !description.trim() || !imageFile}
+            disabled={isBlocked || submitting || !title.trim() || !price || !category || !description.trim() || !imageFile}
           >
             {submitting ? (
               <>

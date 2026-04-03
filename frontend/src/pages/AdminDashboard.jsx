@@ -6,7 +6,7 @@ import {
 import { db } from "../firebase";
 import {
   Shield, Package, Phone, Mail, User, XCircle, CheckCircle,
-  ClipboardList, Hash, Users, Search, Calendar, RefreshCw
+  ClipboardList, Hash, Users, Search, Calendar, RefreshCw, UserX, UserCheck
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -37,6 +37,44 @@ function AdminDashboard() {
       (u.phone || "").toLowerCase().includes(term)
     );
   }, [users, userSearch]);
+
+  async function handleBlockToggle(user) {
+    const willBlock = !user.blocked;
+    const action = willBlock ? "block" : "unblock";
+    if (!window.confirm(`Are you sure you want to ${action} ${user.name || user.email || "this user"}?`)) return;
+    try {
+      await updateDoc(doc(db, "users", user.id), { blocked: willBlock });
+
+      // Update their listed items so they don't show in the marketplace
+      const sellerQ = query(collection(db, "items"), where("sellerId", "==", user.id));
+      const sellerDocs = await getDocs(sellerQ);
+      sellerDocs.forEach(async (d) => {
+        await updateDoc(doc(db, "items", d.id), { sellerBlocked: willBlock });
+      });
+
+      // If blocking, cancel all their reservations
+      if (willBlock) {
+        const reservedQ = query(collection(db, "items"), where("reservedBy", "==", user.id));
+        const reservedDocs = await getDocs(reservedQ);
+        reservedDocs.forEach(async (d) => {
+          await updateDoc(doc(db, "items", d.id), {
+            status: "available",
+            reservedBy: deleteField(),
+            reservedByName: deleteField(),
+            reservedByEmail: deleteField()
+          });
+        });
+        // Optimistically remove these orders from the UI
+        setOrders(prev => prev.filter(o => o.reservedBy !== user.id));
+      }
+
+      setUsers(prev => prev.map(u => u.id === user.id ? { ...u, blocked: willBlock } : u));
+      toast.success(`User ${willBlock ? "blocked" : "unblocked"} successfully.`);
+    } catch (e) {
+      console.error(e);
+      toast.error(`Failed to ${action} user.`);
+    }
+  }
 
   async function handleUnreserve(order) {
     if (!window.confirm("Cancel this reservation? The item will be made available again.")) return;
@@ -365,12 +403,15 @@ function AdminDashboard() {
             ) : (
               <div className="admin-users-list">
                 {filteredUsers.map(user => (
-                  <div key={user.id} className="admin-user-card">
+                  <div key={user.id} className={`admin-user-card ${user.blocked ? "admin-user-card--blocked" : ""}`}>
                     <div className="admin-user-avatar">
                       {(user.name || user.email || "?").charAt(0).toUpperCase()}
                     </div>
                     <div className="admin-user-info">
-                      <h4 className="admin-user-name">{user.name || "Unknown"}</h4>
+                      <h4 className="admin-user-name">
+                        {user.name || "Unknown"}
+                        {user.blocked && <span className="admin-blocked-badge">Blocked</span>}
+                      </h4>
                       <p className="admin-contact-detail"><Mail size={13} /> {user.email || "N/A"}</p>
                       {user.phone && <p className="admin-contact-detail"><Phone size={13} /> {user.phone}</p>}
                       {user.bio && <p className="admin-user-bio">{user.bio}</p>}
@@ -382,6 +423,16 @@ function AdminDashboard() {
                           {new Date(user.createdAt || user.updatedAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}
                         </span>
                       )}
+                      <button
+                        className={`admin-block-btn ${user.blocked ? "admin-block-btn--unblock" : ""}`}
+                        onClick={() => handleBlockToggle(user)}
+                        title={user.blocked ? "Unblock user" : "Block user"}
+                      >
+                        {user.blocked
+                          ? <><UserCheck size={14} /> Unblock</>
+                          : <><UserX size={14} /> Block</>
+                        }
+                      </button>
                     </div>
                   </div>
                 ))}

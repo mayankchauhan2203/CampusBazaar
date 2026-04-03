@@ -2803,3 +2803,58 @@ body {
 @keyframes spinning {
   to { transform: rotate(360deg); }
 }
+
+/* ===== ADMIN BLOCK / UNBLOCK ===== */
+.admin-block-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(248, 113, 113, 0.35);
+  background: rgba(248, 113, 113, 0.08);
+  color: var(--danger);
+  font-size: var(--font-xs);
+  font-weight: 700;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  font-family: var(--font-sans);
+  white-space: nowrap;
+  margin-top: var(--space-sm);
+}
+
+.admin-block-btn:hover {
+  background: rgba(248, 113, 113, 0.18);
+  border-color: rgba(248, 113, 113, 0.6);
+}
+
+.admin-block-btn--unblock {
+  border-color: rgba(74, 222, 128, 0.35);
+  background: rgba(74, 222, 128, 0.08);
+  color: #4ade80;
+}
+
+.admin-block-btn--unblock:hover {
+  background: rgba(74, 222, 128, 0.18);
+  border-color: rgba(74, 222, 128, 0.6);
+}
+
+.admin-user-card--blocked {
+  border-color: rgba(248, 113, 113, 0.25);
+  background: linear-gradient(135deg, var(--bg-card) 0%, rgba(248, 113, 113, 0.04) 100%);
+}
+
+.admin-blocked-badge {
+  display: inline-block;
+  margin-left: var(--space-sm);
+  padding: 1px 8px;
+  border-radius: var(--radius-full);
+  background: rgba(248, 113, 113, 0.15);
+  border: 1px solid rgba(248, 113, 113, 0.35);
+  color: var(--danger);
+  font-size: var(--font-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  vertical-align: middle;
+}
