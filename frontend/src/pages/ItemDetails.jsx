@@ -1,15 +1,15 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { doc, getDoc, updateDoc, addDoc, collection, serverTimestamp, query, where, getDocs, deleteField } from "firebase/firestore";
+import { doc, getDoc, updateDoc, addDoc, collection, serverTimestamp, query, where, getDocs, deleteField, deleteDoc } from "firebase/firestore";
 import { db } from "../firebase";
 import { useAuth } from "../context/AuthContext";
-import { Package, ShoppingCart, CheckCircle, User, ArrowLeft, AlertTriangle } from "lucide-react";
+import { Package, ShoppingCart, CheckCircle, User, ArrowLeft, AlertTriangle, Trash2 } from "lucide-react";
 import toast from "react-hot-toast";
 
 function ItemDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { currentUser, userData, isBlocked } = useAuth();
+  const { currentUser, userData, isBlocked, isAdmin } = useAuth();
   
   const [item, setItem] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -183,6 +183,28 @@ function ItemDetails() {
     }
   }
 
+  async function handleDeleteItem() {
+    if (!window.confirm("Are you sure you want to delete this item? This action cannot be undone.")) return;
+    try {
+      await deleteDoc(doc(db, "items", item.id));
+
+      await addDoc(collection(db, "notifications"), {
+        recipientId: item.sellerId,
+        type: "item_deleted",
+        itemId: item.id,
+        itemTitle: item.title,
+        read: false,
+        createdAt: serverTimestamp()
+      });
+
+      toast.success("Item deleted successfully");
+      navigate("/marketplace");
+    } catch (error) {
+      console.error("Error deleting item:", error);
+      toast.error("Failed to delete item");
+    }
+  }
+
   if (loading) {
     return (
       <div style={{ display: "flex", justifyContent: "center", padding: "100px 0" }}>
@@ -261,6 +283,18 @@ function ItemDetails() {
               >
                 <AlertTriangle size={16} />
                 {hasReported ? "Reported" : "Report Item"}
+              </button>
+            )}
+            
+            {/* Delete Button (Admins only) */}
+            {isAdmin && (
+              <button 
+                className="btn-cancel" 
+                style={{ marginTop: "12px", width: "100%", display: "flex", justifyContent: "center", gap: "8px", background: "rgba(248, 113, 113, 0.1)", border: "1px solid var(--danger)", color: "var(--danger)" }}
+                onClick={handleDeleteItem}
+              >
+                <Trash2 size={16} />
+                Delete Item (Admin)
               </button>
             )}
           </div>

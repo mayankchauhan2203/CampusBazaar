@@ -1,7 +1,7 @@
 import { collection, query, where, orderBy, onSnapshot, doc, updateDoc, writeBatch } from "firebase/firestore";
 import { db } from "../firebase";
 import { useEffect, useState } from "react";
-import { Bell, CheckCheck, ShoppingCart, Mail, Clock, Phone, AlertTriangle } from "lucide-react";
+import { Bell, CheckCheck, ShoppingCart, Mail, Clock, Phone, AlertTriangle, Trash2 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useAuth } from "../context/AuthContext";
 
@@ -187,7 +187,7 @@ function Notifications() {
                   color: notif.read ? "var(--text-muted)" : "var(--accent-primary)",
                 }}
               >
-                {notif.type === "new_report" ? <AlertTriangle size={20} /> : <ShoppingCart size={20} />}
+                {notif.type === "new_report" ? <AlertTriangle size={20} /> : notif.type === "item_deleted" ? <Trash2 size={20} /> : <ShoppingCart size={20} />}
               </div>
 
               {/* Content */}
@@ -201,6 +201,10 @@ function Notifications() {
                         <span style={{ fontSize: "var(--font-sm)", fontWeight: "normal", fontStyle: "italic", color: "var(--danger)" }}>
                           "{notif.message}"
                         </span>
+                      </>
+                    ) : notif.type === "item_deleted" ? (
+                      <>
+                        Your item <strong style={{ color: "var(--accent-primary)" }}>"{notif.itemTitle}"</strong> has been removed by an administrator.
                       </>
                     ) : notif.type === "item_unreserved" ? (
                       <>
@@ -227,9 +231,11 @@ function Notifications() {
                 </div>
 
                 <div style={{ display: "flex", alignItems: "center", gap: "var(--space-lg)", marginTop: "var(--space-sm)", flexWrap: "wrap" }}>
-                  <span style={{ fontSize: "var(--font-sm)", color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: "4px" }}>
-                    ₹{notif.itemPrice}
-                  </span>
+                  {notif.itemPrice != null && (
+                    <span style={{ fontSize: "var(--font-sm)", color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: "4px" }}>
+                      ₹{notif.itemPrice}
+                    </span>
+                  )}
                   <span style={{ fontSize: "var(--font-sm)", color: "var(--text-muted)", display: "flex", alignItems: "center", gap: "4px" }}>
                     <Clock size={13} />
                     {timeAgo(notif.createdAt)}
