@@ -43,13 +43,13 @@ function PostItem() {
         const formData = new FormData();
         formData.append('file', imageFile);
         formData.append('upload_preset', 'duds5cijd');
-        
+
         const res = await fetch('https://api.cloudinary.com/v1_1/duds5cijd/image/upload', {
           method: 'POST',
           body: formData
         });
         const data = await res.json();
-        
+
         if (data.secure_url) {
           finalImageUrl = data.secure_url;
         } else {

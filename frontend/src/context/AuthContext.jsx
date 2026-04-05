@@ -1,216 +1,138 @@
 import { createContext, useContext, useEffect, useState } from "react";
-import {
-  signOut,
-  onAuthStateChanged,
-  updateProfile,
-  deleteUser,
-  sendSignInLinkToEmail,
-  isSignInWithEmailLink,
-  signInWithEmailLink,
-  createUserWithEmailAndPassword,
-  signInWithEmailAndPassword,
-  updatePassword,
-  sendPasswordResetEmail,
-  EmailAuthProvider,
-  reauthenticateWithCredential
-} from "firebase/auth";
+import { signOut, onAuthStateChanged, deleteUser, updateProfile } from "firebase/auth";
 import { auth, db } from "../firebase";
 import { doc, deleteDoc, onSnapshot, setDoc } from "firebase/firestore";
 import toast from "react-hot-toast";
 
 const AuthContext = createContext();
 
-// Add your admin emails here
+// Admin emails — checked against Firestore email (works with custom token UIDs)
 const ADMIN_EMAILS = ["mayank@iitd.ac.in", "admin@iitd.ac.in", "pushkin@iitd.ac.in"];
 
 export function useAuth() {
   return useContext(AuthContext);
 }
 
+// ── PKCE helpers ──────────────────────────────────────────────────────────────
+function base64UrlEncode(array) {
+  return btoa(String.fromCharCode(...array))
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=/g, "");
+}
+
 export function AuthProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(null);
-  const [userData, setUserData] = useState(null);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [userData, setUserData]       = useState(null);
+  const [isAdmin, setIsAdmin]         = useState(false);
+  const [loading, setLoading]         = useState(true);
 
-  async function sendMagicLink(email) {
-    if (!email.endsWith("@iitd.ac.in")) {
-      return { success: false, error: "not-iitd" };
-    }
-
-    const actionCodeSettings = {
-      url: window.location.origin + '/login',
-      handleCodeInApp: true,
-    };
-
+  // ── Initiate IITD OAuth 2.0 + PKCE flow ──────────────────────────────────
+  async function loginWithIITD() {
     try {
-      await sendSignInLinkToEmail(auth, email, actionCodeSettings);
-      window.localStorage.setItem('emailForSignIn', email);
-      return { success: true };
-    } catch (error) {
-      console.error("Magic link error:", error);
-      return { success: false, error: error.message };
+      // 1. Generate PKCE code_verifier
+      const verifierBytes = new Uint8Array(32);
+      crypto.getRandomValues(verifierBytes);
+      const codeVerifier = base64UrlEncode(verifierBytes);
+
+      // 2. Compute code_challenge = BASE64URL(SHA256(code_verifier))
+      const encoder = new TextEncoder();
+      const digest = await crypto.subtle.digest(
+        "SHA-256",
+        encoder.encode(codeVerifier)
+      );
+      const codeChallenge = base64UrlEncode(new Uint8Array(digest));
+
+      // 3. Generate random state (CSRF protection)
+      const stateBytes = new Uint8Array(16);
+      crypto.getRandomValues(stateBytes);
+      const state = base64UrlEncode(stateBytes);
+
+      // 4. Persist in sessionStorage
+      sessionStorage.setItem("pkce_code_verifier", codeVerifier);
+      sessionStorage.setItem("oauth_state", state);
+
+      // 5. Redirect to IITD authorize endpoint (Modern API)
+      const params = new URLSearchParams({
+        response_type:         "code",
+        client_id:             "42abb3bfcb640147e23d8f74609e9601",
+        redirect_uri:          `${window.location.origin}/auth/callback`,
+        state:                 state,
+        code_challenge:        codeChallenge,
+        code_challenge_method: "S256",
+      });
+
+      // Passing scope as an empty string or omitting it entirely to avoid the generic IITD form crash
+      // params.append("scope", "openid");
+
+      window.location.href = `https://oauth.iitd.ac.in/api/oauth/authorize?${params}`;
+    } catch (err) {
+      console.error("[loginWithIITD] Failed:", err);
+      toast.error("Failed to start IITD login. Please try again.");
     }
   }
 
-  async function verifyMagicLink(email, url) {
-    try {
-      if (isSignInWithEmailLink(auth, url)) {
-        const result = await signInWithEmailLink(auth, email, url);
-        window.localStorage.removeItem('emailForSignIn');
-        return { success: true, user: result.user };
-      }
-      return { success: false, error: "invalid-link" };
-    } catch (error) {
-      console.error("Magic link verification error:", error);
-      return { success: false, error: error.message };
-    }
-  }
-
-  function isMagicLink(url) {
-    return isSignInWithEmailLink(auth, url);
-  }
-
+  // ── Logout ────────────────────────────────────────────────────────────────
   function logout() {
     return signOut(auth);
   }
 
+  // ── Delete account ────────────────────────────────────────────────────────
   async function deleteAccount() {
     if (!currentUser) return { success: false, error: "No active user" };
 
-    // 1. Delete Firestore user document (Best effort)
     try {
-      const userDocRef = doc(db, "users", currentUser.uid);
-      await deleteDoc(userDocRef);
+      await deleteDoc(doc(db, "users", currentUser.uid));
     } catch (e) {
-      console.warn("Could not delete Firestore doc (likely security rules):", e);
+      console.warn("Could not delete Firestore doc:", e);
     }
 
-    // 2. Delete Profile Photo from Storage (Best effort)
-
-
-    // 3. Delete Auth Account
     try {
       await deleteUser(currentUser);
-
-      toast.success("Account deleted successfully. We're sorry to see you go!");
+      toast.success("Account deleted successfully.");
       return { success: true };
     } catch (error) {
       console.error("Auth deletion error:", error);
-      if (error.code === 'auth/requires-recent-login') {
-        toast.error("For security, you must have logged in recently to delete your account. Redirecting...");
-        await signOut(auth); // Force log out
+      if (error.code === "auth/requires-recent-login") {
+        toast.error("Please log in again before deleting your account.");
+        await signOut(auth);
         return { success: false, error: "requires-recent-login", forceLogout: true };
-      } else {
-        toast.error(`Failed to delete account: ${error.message}`);
       }
+      toast.error(`Failed to delete account: ${error.message}`);
       return { success: false, error: error.message };
     }
   }
 
-  async function registerWithPassword(email, password, name) {
-    if (!email.endsWith("@iitd.ac.in")) {
-      return { success: false, error: "not-iitd" };
-    }
-    try {
-      const result = await createUserWithEmailAndPassword(auth, email, password);
-      await updateProfile(result.user, { displayName: name });
-      // Create Firestore user doc so the admin Users tab can see this user
-      await setDoc(doc(db, "users", result.user.uid), {
-        name: name,
-        email: email,
-        uid: result.user.uid,
-        createdAt: new Date().toISOString(),
-      }, { merge: true });
-      return { success: true, user: result.user };
-    } catch (error) {
-      console.error("Registration error:", error);
-      return { success: false, error: error.message };
-    }
-  }
-
-  async function loginWithPassword(email, password) {
-    if (!email.endsWith("@iitd.ac.in")) {
-      return { success: false, error: "not-iitd" };
-    }
-    try {
-      const result = await signInWithEmailAndPassword(auth, email, password);
-      return { success: true, user: result.user };
-    } catch (error) {
-      console.error("Login error:", error);
-      return { success: false, error: error.message };
-    }
-  }
-
-  async function resetPassword(email) {
-    if (!email) return { success: false, error: "Email required" };
-    try {
-      await sendPasswordResetEmail(auth, email);
-      toast.success("Password reset email sent! Check your inbox.");
-      return { success: true };
-    } catch (error) {
-      toast.error(error.message);
-      return { success: false, error: error.message };
-    }
-  }
-
-  async function changeUserPassword(oldPassword, newPassword) {
-    if (!currentUser) return { success: false, error: "No user" };
-    try {
-      // Re-authenticate user to fulfill the "recent login" requirement seamlessly
-      const credential = EmailAuthProvider.credential(currentUser.email, oldPassword);
-      await reauthenticateWithCredential(currentUser, credential);
-      
-      // Now update the password
-      await updatePassword(currentUser, newPassword);
-      toast.success("Password updated successfully!");
-      return { success: true };
-    } catch (error) {
-      console.error("Password update error:", error);
-      if (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password') {
-        toast.error("Incorrect current password.");
-      } else if (error.code === 'auth/too-many-requests') {
-        toast.error("Too many failed attempts. Try again later.");
-      } else {
-        toast.error(error.message);
-      }
-      return { success: false, error: error.message };
-    }
-  }
-
+  // ── Firebase Auth state listener ──────────────────────────────────────────
   useEffect(() => {
     let unsubUserDoc = null;
 
     const unsubscribe = onAuthStateChanged(auth, (user) => {
-      // Validate IITD domain & verification state dynamically
       if (user) {
-        if (!user.email.endsWith("@iitd.ac.in")) {
-          signOut(auth);
-          setCurrentUser(null);
-          setUserData(null);
-          // } else if (!user.emailVerified) {
-          //   // If they are cached as logged in but never verified
-          //   setCurrentUser(null);
-        } else {
-          setCurrentUser(user);
-          setIsAdmin(ADMIN_EMAILS.includes(user.email?.toLowerCase()));
+        setCurrentUser(user);
 
-          // Upsert name + email so the admin Users tab always has current data.
-          // Only write name if displayName is set — avoids overwriting with ""
-          // when onAuthStateChanged fires before updateProfile completes.
-          const upsertData = { email: user.email || "", uid: user.uid };
-          if (user.displayName) upsertData.name = user.displayName;
-          setDoc(doc(db, "users", user.uid), upsertData, { merge: true })
-            .catch(e => console.warn("Could not upsert user doc:", e));
+        // Keep a minimal Firestore doc in sync (uid always present)
+        const upsertData = { uid: user.uid };
+        if (user.displayName) upsertData.name  = user.displayName;
+        if (user.email)       upsertData.email = user.email;
 
-          unsubUserDoc = onSnapshot(doc(db, "users", user.uid), (docSnap) => {
-            if (docSnap.exists()) {
-              setUserData(docSnap.data());
-            } else {
-              setUserData(null);
-            }
-          });
-        }
+        setDoc(doc(db, "users", user.uid), upsertData, { merge: true }).catch(
+          (e) => console.warn("Could not upsert user doc:", e)
+        );
+
+        // Real-time listener on Firestore user doc
+        // isAdmin is derived from here so it works for custom-token users
+        // (who may have no email on the Firebase Auth object itself)
+        unsubUserDoc = onSnapshot(doc(db, "users", user.uid), (docSnap) => {
+          if (docSnap.exists()) {
+            const data = docSnap.data();
+            setUserData(data);
+            setIsAdmin(ADMIN_EMAILS.includes((data.email || "").toLowerCase()));
+          } else {
+            setUserData(null);
+            setIsAdmin(false);
+          }
+        });
       } else {
         setCurrentUser(null);
         setIsAdmin(false);
@@ -226,23 +148,15 @@ export function AuthProvider({ children }) {
     };
   }, []);
 
-
-
   const value = {
     currentUser,
     userData,
     isAdmin,
-    isBlocked: !!userData?.blocked,
-    sendMagicLink,
-    verifyMagicLink,
-    isMagicLink,
-    registerWithPassword,
-    loginWithPassword,
-    changeUserPassword,
-    resetPassword,
+    isBlocked:    !!userData?.blocked,
+    loginWithIITD,
     logout,
     deleteAccount,
-    loading
+    loading,
   };
 
   return (

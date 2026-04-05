@@ -1,229 +1,170 @@
-import { useState, useEffect } from "react";
-import { useNavigate, useLocation, Navigate } from "react-router-dom";
+import { useLocation, Navigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { ShoppingBag, Shield, Mail, User as UserIcon } from "lucide-react";
-import toast from "react-hot-toast";
-import { updateProfile } from "firebase/auth";
+import { ShoppingBag, Shield, ArrowRight, Lock, Users, CheckCircle } from "lucide-react";
 
 function Login() {
-  const { sendMagicLink, verifyMagicLink, isMagicLink, currentUser, loginWithPassword, registerWithPassword, resetPassword } = useAuth();
-  const navigate = useNavigate();
+  const { loginWithIITD, currentUser } = useAuth();
   const location = useLocation();
 
-  const [isRegistering, setIsRegistering] = useState(false);
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    // Check if coming from email link
-    // MAGIC LINK LOGIC COMMENTED OUT FOR TESTING
-    /*
-    if (isMagicLink(window.location.href)) {
-      let emailForSignIn = window.localStorage.getItem('emailForSignIn');
-      if (!emailForSignIn) {
-        emailForSignIn = window.prompt("Please provide your email for confirmation");
-      }
-      
-      if (emailForSignIn) {
-        setLoading(true);
-        verifyMagicLink(emailForSignIn, window.location.href)
-          .then(async (result) => {
-            if (result.success) {
-              const savedName = window.localStorage.getItem('nameForSignIn');
-              if (savedName && result.user) {
-                try {
-                  await updateProfile(result.user, { displayName: savedName });
-                } catch (e) {
-                  console.error(e);
-                }
-              }
-              // Toast is mostly handled in verifyMagicLink, but we can do it here too just in case
-              toast.success("Successfully logged in!");
-              window.localStorage.removeItem('nameForSignIn');
-              const from = location.state?.from?.pathname || "/marketplace";
-              navigate(from, { replace: true });
-            } else {
-              setLoading(false);
-            }
-          });
-      }
-    }
-    */
-  }, [isMagicLink, verifyMagicLink, navigate, location.state]);
-
-  async function handleForgotPassword() {
-    if (!email.endsWith("@iitd.ac.in")) {
-      toast.error("Please enter your @iitd.ac.in email address first.");
-      return;
-    }
-    setLoading(true);
-    await resetPassword(email);
-    setLoading(false);
-  }
-
-  // If already logged in, redirect away
+  // If already logged in, redirect to intended page
   if (currentUser) {
     const from = location.state?.from?.pathname || "/marketplace";
     return <Navigate to={from} replace />;
   }
 
-  async function handleSubmit(e) {
-    e.preventDefault();
-
-    if (!email.endsWith("@iitd.ac.in")) {
-      toast.error("You must use an @iitd.ac.in email address.");
-      return;
-    }
-
-    setLoading(true);
-
-    if (isRegistering) {
-      if (!name.trim()) {
-        toast.error("Please enter your name.");
-        setLoading(false);
-        return;
-      }
-      if (password.length < 6) {
-        toast.error("Password must be at least 6 characters.");
-        setLoading(false);
-        return;
-      }
-
-      const result = await registerWithPassword(email, password, name.trim());
-      if (!result.success) {
-        toast.error(result.error === "not-iitd" ? "You must use an @iitd.ac.in email." : result.error);
-      } else {
-        toast.success("Account created! Logging in...");
-        const from = location.state?.from?.pathname || "/marketplace";
-        navigate(from, { replace: true });
-      }
-    } else {
-      const result = await loginWithPassword(email, password);
-      if (!result.success) {
-        toast.error(result.error === "not-iitd" ? "You must use an @iitd.ac.in email." : "Invalid credentials.");
-      } else {
-        toast.success("Successfully logged in!");
-        const from = location.state?.from?.pathname || "/marketplace";
-        navigate(from, { replace: true });
-      }
-    }
-
-    /* MAGIC LINK LOGIC COMMENTED OUT FOR TESTING
-    const result = await sendMagicLink(email);
-    if (!result.success) {
-      toast.error(result.error === "not-iitd" ? "You must use an @iitd.ac.in email." : "Failed to send link.");
-    } else {
-      toast.success("Login link sent! Please check your email.");
-    }
-    */
-
-    setLoading(false);
+  function handleLogin() {
+    // Save the intended destination so callback can redirect correctly
+    const from = location.state?.from?.pathname;
+    if (from) sessionStorage.setItem("oauth_redirect_after", from);
+    loginWithIITD();
   }
 
   return (
     <div className="login-page">
-      <div className="login-card" style={{ maxWidth: '420px' }}>
-        <div className="login-brand" style={{ marginBottom: 'var(--space-xl)' }}>
-          <div className="brand-icon-large">
-            <ShoppingBag size={32} color="white" />
-          </div>
-          <h1>{isRegistering ? "Create Account" : "Access PeerMart"}</h1>
-        </div>
-
-        <div className="login-alert" style={{ marginBottom: 'var(--space-xl)', padding: 'var(--space-md)' }}>
-          <Shield size={18} className="alert-icon" />
-          <div className="alert-text">
-            <p style={{ margin: 0, fontSize: '0.85rem' }}>
-              Restricted to <code>@iitd.ac.in</code> emails only. Password login (Testing Mode).
-            </p>
-          </div>
-        </div>
-
-        <form onSubmit={handleSubmit} className="login-form">
-          {isRegistering && (
-            <div className="form-group">
-              <label>Full Name</label>
-              <div className="input-with-icon">
-                <UserIcon size={18} className="input-icon" />
-                <input
-                  type="text"
-                  placeholder="Student Name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  disabled={loading}
-                />
-              </div>
-            </div>
-          )}
-
-          <div className="form-group">
-            <label>IITD Email</label>
-            <div className="input-with-icon">
-              <Mail size={18} className="input-icon" />
-              <input
-                type="email"
-                placeholder="email@iitd.ac.in"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                disabled={loading}
-              />
-            </div>
-          </div>
-
-          <div className="form-group">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <label>Password</label>
-              {!isRegistering && (
-                <button type="button" onClick={handleForgotPassword} style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', fontSize: '12px', padding: 0 }}>
-                  Forgot Password?
-                </button>
-              )}
-            </div>
-            <div className="input-with-icon">
-              <Shield size={18} className="input-icon" />
-              <input
-                type="password"
-                placeholder="Password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                disabled={loading}
-              />
-            </div>
-          </div>
-
-          <button
-            type="submit"
-            className="login-btn"
-            disabled={loading}
-            style={{ marginTop: 'var(--space-xl)', background: 'var(--accent-gradient)', color: '#fff', border: 'none' }}
+      <div
+        className="login-card"
+        style={{
+          maxWidth: "460px",
+          display: "flex",
+          flexDirection: "column",
+          gap: 0,
+          padding: 0,
+          overflow: "hidden",
+        }}
+      >
+        {/* ── Header band ──────────────────────────────────────────────── */}
+        <div
+          style={{
+            background: "var(--accent-gradient)",
+            padding: "2rem 2rem 2.5rem",
+            textAlign: "center",
+            position: "relative",
+          }}
+        >
+          <div
+            style={{
+              width: "72px",
+              height: "72px",
+              borderRadius: "20px",
+              background: "rgba(255,255,255,0.2)",
+              backdropFilter: "blur(8px)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              margin: "0 auto 1rem",
+              border: "1px solid rgba(255,255,255,0.3)",
+              boxShadow: "0 8px 32px rgba(0,0,0,0.2)",
+            }}
           >
-            {loading ? "Please wait..." : (isRegistering ? "Create Account" : "Sign In")}
-          </button>
-        </form>
-
-        <div className="login-toggle">
-          <p>
-            {isRegistering ? "Already have an account?" : "New to PeerMart?"}
-            <button
-              type="button"
-              className="toggle-btn"
-              onClick={() => {
-                setIsRegistering(!isRegistering);
-              }}
-            >
-              {isRegistering ? "Sign In" : "Create Account"}
-            </button>
+            <ShoppingBag size={36} color="white" />
+          </div>
+          <h1
+            style={{
+              color: "#fff",
+              margin: "0 0 0.25rem",
+              fontSize: "1.6rem",
+              fontWeight: 700,
+            }}
+          >
+            PeerMart
+          </h1>
+          <p style={{ color: "rgba(255,255,255,0.85)", margin: 0, fontSize: "0.9rem" }}>
+            IIT Delhi's student marketplace
           </p>
+        </div>
+
+        {/* ── Body ─────────────────────────────────────────────────────── */}
+        <div style={{ padding: "2rem" }}>
+          {/* Security notice */}
+          <div className="login-alert" style={{ marginBottom: "1.75rem" }}>
+            <Shield size={16} className="alert-icon" style={{ flexShrink: 0 }} />
+            <div className="alert-text">
+              <p style={{ margin: 0, fontSize: "0.825rem", lineHeight: 1.5 }}>
+                Exclusive to <code>@iitd.ac.in</code> accounts. Sign in with
+                your official IITD Single Sign-On credentials.
+              </p>
+            </div>
+          </div>
+
+          {/* IITD Login button */}
+          <button
+            id="iitd-login-btn"
+            className="login-btn"
+            onClick={handleLogin}
+            style={{
+              background: "var(--accent-gradient)",
+              color: "#fff",
+              border: "none",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "0.75rem",
+              fontSize: "1rem",
+              fontWeight: 600,
+              padding: "0.875rem 1.5rem",
+              borderRadius: "12px",
+              cursor: "pointer",
+              width: "100%",
+              boxShadow: "0 4px 20px rgba(255,140,66,0.3)",
+              transition: "transform 0.18s, box-shadow 0.18s",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = "translateY(-2px)";
+              e.currentTarget.style.boxShadow = "0 8px 28px rgba(255,140,66,0.45)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = "translateY(0)";
+              e.currentTarget.style.boxShadow = "0 4px 20px rgba(255,140,66,0.3)";
+            }}
+          >
+            <Lock size={18} />
+            Login with IITD Credentials
+            <ArrowRight size={18} style={{ marginLeft: "auto" }} />
+          </button>
+
+          {/* Footer hint */}
+          <p
+            style={{
+              textAlign: "center",
+              fontSize: "0.78rem",
+              color: "var(--text-muted)",
+              marginTop: "1.25rem",
+              marginBottom: 0,
+              lineHeight: 1.5,
+            }}
+          >
+            You'll be redirected to the IITD portal to verify your identity.
+            <br />
+            No password is stored by PeerMart.
+          </p>
+        </div>
+
+        {/* ── Footer band ──────────────────────────────────────────────── */}
+        <div
+          style={{
+            borderTop: "1px solid var(--border-subtle)",
+            padding: "0.875rem 2rem",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "0.5rem",
+            background: "var(--bg-secondary)",
+          }}
+        >
+          <Users size={13} color="var(--text-muted)" />
+          <span style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>
+            Open only to IIT Delhi students &amp; faculty
+          </span>
         </div>
       </div>
 
-      <div className="hero-bg" style={{ pointerEvents: 'none', position: 'fixed', zIndex: -1 }}>
-        <div className="hero-blob hero-blob-1"></div>
-        <div className="hero-blob hero-blob-2"></div>
+      {/* Background blobs */}
+      <div
+        className="hero-bg"
+        style={{ pointerEvents: "none", position: "fixed", zIndex: -1 }}
+      >
+        <div className="hero-blob hero-blob-1" />
+        <div className="hero-blob hero-blob-2" />
       </div>
     </div>
   );
