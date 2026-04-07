@@ -20,7 +20,7 @@ app.use(
 );
 app.use(express.json());
 
-const IITD_BASE_URL = "https://oauth.devclub.in";
+const IITD_BASE_URL = "https://auth.devclub.in";
 
 // ── Main endpoint: IITD token exchange → Firebase Custom Token ────────────────
 app.post("/api/auth/iitd/token", async (req, res) => {
