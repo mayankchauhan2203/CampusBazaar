@@ -210,11 +210,21 @@ function Notifications() {
                       <>
                         Your item <strong style={{ color: "var(--accent-primary)" }}>"{notif.itemTitle}"</strong> has been unreserved and is available in the marketplace again.
                       </>
+                    ) : notif.type === "seller_cancelled_reservation" ? (
+                      <>
+                        <strong style={{ color: "var(--danger)" }}>Reservation Cancelled.</strong> The seller (<strong style={{ color: "var(--accent-primary)" }}>{notif.sellerName}</strong>) has cancelled your reservation for <strong style={{ color: "var(--text-primary)" }}>"{notif.itemTitle}"</strong>.
+                      </>
+                    ) : notif.type === "reservation_buyer_confirm" ? (
+                      <>
+                        You successfully reserved <strong style={{ color: "var(--accent-primary)" }}>"{notif.itemTitle}"</strong>! Your contact info has been natively shared with the seller.
+                      </>
+                    ) : notif.type === "reservation" ? (
+                      <>
+                        <strong style={{ color: "var(--accent-primary)" }}>{notif.buyerName || "A user"}</strong> has reserved your item <strong style={{ color: "var(--text-primary)" }}>"{notif.itemTitle}"</strong>. Check 'My Listings' for their details.
+                      </>
                     ) : (
                       <>
-                        Someone has reserved your item{" "}
-                        <strong style={{ color: "var(--accent-primary)" }}>"{notif.itemTitle}"</strong>.{" "}
-                        The admin will contact you shortly.
+                        Someone has reserved your item <strong style={{ color: "var(--accent-primary)" }}>"{notif.itemTitle}"</strong>. Check 'My Listings' for their details.
                       </>
                     )}
                   </p>

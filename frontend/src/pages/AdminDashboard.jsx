@@ -185,20 +185,28 @@ function AdminDashboard() {
       const reportsData = await Promise.all(snap.docs.map(async (docSnap) => {
         const data = docSnap.data();
         let reporterName = "Unknown";
+        let reporterEmail = "N/A";
         let sellerName = "Unknown";
+        let sellerEmail = "N/A";
         try {
           if (data.reporterId) {
             const rd = await getDoc(doc(db, "users", data.reporterId));
-            if (rd.exists()) reporterName = rd.data().name || rd.data().email || "Unknown";
+            if (rd.exists()) {
+              reporterName = rd.data().name || rd.data().email || "Unknown";
+              reporterEmail = rd.data().email || "N/A";
+            }
           }
         } catch (e) {}
         try {
           if (data.sellerId) {
             const sd = await getDoc(doc(db, "users", data.sellerId));
-            if (sd.exists()) sellerName = sd.data().name || sd.data().email || "Unknown";
+            if (sd.exists()) {
+              sellerName = sd.data().name || sd.data().email || "Unknown";
+              sellerEmail = sd.data().email || "N/A";
+            }
           }
         } catch (e) {}
-        return { id: docSnap.id, ...data, reporterName, sellerName };
+        return { id: docSnap.id, ...data, reporterName, reporterEmail, sellerName, sellerEmail };
       }));
       setReports(reportsData);
     } catch (e) {
@@ -553,8 +561,8 @@ function AdminDashboard() {
                        <p className="admin-report-message">"{report.message}"</p>
                        <div className="admin-report-details">
                          <div><strong>Item:</strong> {report.itemTitle}</div>
-                         <div><strong>Reporter:</strong> {report.reporterName}</div>
-                         <div><strong>Seller:</strong> {report.sellerName}</div>
+                         <div><strong>Reporter:</strong> {report.reporterName} {report.reporterEmail !== "N/A" && `(${report.reporterEmail})`}</div>
+                         <div><strong>Seller:</strong> {report.sellerName} {report.sellerEmail !== "N/A" && `(${report.sellerEmail})`}</div>
                          {report.createdAt && <div><strong>Date:</strong> {new Date(report.createdAt.toDate ? report.createdAt.toDate() : report.createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}</div>}
                        </div>
                      </div>

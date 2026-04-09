@@ -121,17 +121,31 @@ function ItemDetails() {
       await updateDoc(itemRef, {
         status: "reserved",
         reservedBy: currentUser.uid,
-        reservedByName: currentUser.displayName || "IITD Student",
+        reservedByName: currentUser.displayName || "Student User",
         reservedByEmail: currentUser.email,
+        reservedByPhone: reservePhone,
         reservedAt: serverTimestamp(),
       });
 
+      // Seller Notification
       await addDoc(collection(db, "notifications"), {
         recipientId: item.sellerId,
-        type: "reservation_anonymous",
+        type: "reservation",
         itemId: item.id,
         itemTitle: item.title,
         itemPrice: item.price,
+        buyerName: currentUser.displayName || "Student User",
+        read: false,
+        createdAt: serverTimestamp(),
+      });
+
+      // Buyer Notification
+      await addDoc(collection(db, "notifications"), {
+        recipientId: currentUser.uid,
+        type: "reservation_buyer_confirm",
+        itemId: item.id,
+        itemTitle: item.title,
+        sellerId: item.sellerId,
         read: false,
         createdAt: serverTimestamp(),
       });
@@ -141,8 +155,9 @@ function ItemDetails() {
         ...prev,
         status: "reserved",
         reservedBy: currentUser.uid,
-        reservedByName: currentUser.displayName || "IITD Student",
-        reservedByEmail: currentUser.email
+        reservedByName: currentUser.displayName || "Student User",
+        reservedByEmail: currentUser.email,
+        reservedByPhone: reservePhone
       }));
 
       toast.success("Item reserved successfully!");
