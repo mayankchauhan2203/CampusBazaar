@@ -19,10 +19,7 @@ function IITDCallback() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    // Guard against React StrictMode double-invocation — once the code is consumed, don't retry
-    if (sessionStorage.getItem("pkce_code_verifier")) {
-      handleCallback();
-    }
+    handleCallback();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -45,14 +42,16 @@ function IITDCallback() {
       }
 
       // ── CSRF protection ───────────────────────────────────────────────────
-      const savedState    = sessionStorage.getItem("oauth_state");
-      const codeVerifier  = sessionStorage.getItem("pkce_code_verifier");
+      const savedState = sessionStorage.getItem("oauth_state");
+
+      // Synchronously claim the verifier before any async work — this prevents
+      // React StrictMode's double-invocation from sending the auth code twice.
+      const codeVerifier = sessionStorage.getItem("pkce_code_verifier");
+      if (!codeVerifier) return; // Already consumed by the first invocation
+      sessionStorage.removeItem("pkce_code_verifier");
 
       if (!savedState || state !== savedState) {
         throw new Error("State mismatch — possible CSRF attack. Please try logging in again.");
-      }
-      if (!codeVerifier) {
-        throw new Error("PKCE code verifier missing. Please try logging in again.");
       }
 
       // ── Step 1: Exchange code with backend ────────────────────────────────
@@ -114,7 +113,6 @@ function IITDCallback() {
 
       // ── Clean up sessionStorage ───────────────────────────────────────────
       const redirectTo = sessionStorage.getItem("oauth_redirect_after") || "/marketplace";
-      sessionStorage.removeItem("pkce_code_verifier");
       sessionStorage.removeItem("oauth_state");
       sessionStorage.removeItem("oauth_redirect_after");
 
