@@ -13,7 +13,7 @@ admin.initializeApp({
 const app = express();
 app.use(
   cors({
-    origin: process.env.REACT_APP_FRONTEND_URL || "http://localhost:3000",
+    origin: "https://peermart.vercel.app/",
     methods: ["GET", "POST"],
     credentials: true,
   })
