@@ -57,6 +57,11 @@ function ItemDetails() {
   }, [id, navigate]);
 
   function handleReserveClick() {
+    if (!currentUser) {
+      toast.error("You must be logged in to reserve an item.");
+      navigate("/login", { state: { returnUrl: `/item/${id}` } });
+      return;
+    }
     if (isBlocked) {
       toast.error("Your account has been blocked. Contact the admin.");
       return;
@@ -83,6 +88,30 @@ function ItemDetails() {
     }
 
     try {
+      // Rate-limit check: max 2 reservations per 24 hours
+      const q = query(
+        collection(db, "items"),
+        where("reservedBy", "==", currentUser.uid)
+      );
+      const snap = await getDocs(q);
+      const limitTime = Date.now() - 24 * 60 * 60 * 1000;
+      let count24h = 0;
+
+      snap.forEach(docSnap => {
+        const data = docSnap.data();
+        if (data.reservedAt && typeof data.reservedAt.toMillis === 'function') {
+          if (data.reservedAt.toMillis() >= limitTime) {
+            count24h++;
+          }
+        }
+      });
+
+      if (count24h >= 2) {
+        toast.error("Daily limit reached: You can only reserve 2 items per 24 hours.");
+        setShowReserveModal(false);
+        return;
+      }
+
       if (reservePhone !== userData?.phone) {
         const userRef = doc(db, "users", currentUser.uid);
         await updateDoc(userRef, { phone: reservePhone });
@@ -94,6 +123,7 @@ function ItemDetails() {
         reservedBy: currentUser.uid,
         reservedByName: currentUser.displayName || "IITD Student",
         reservedByEmail: currentUser.email,
+        reservedAt: serverTimestamp(),
       });
 
       await addDoc(collection(db, "notifications"), {
@@ -106,9 +136,16 @@ function ItemDetails() {
         createdAt: serverTimestamp(),
       });
 
+      // Update the local state so the UI rerenders immediately without a refresh
+      setItem(prev => ({
+        ...prev,
+        status: "reserved",
+        reservedBy: currentUser.uid,
+        reservedByName: currentUser.displayName || "IITD Student",
+        reservedByEmail: currentUser.email
+      }));
+
       toast.success("Item reserved successfully!");
-      // Close modal on success
-      toast.success("Reservation confirmed!");
       setShowReserveModal(false);
     } catch (error) {
       console.error(error);
@@ -278,7 +315,14 @@ function ItemDetails() {
               <button 
                 className="btn-cancel" 
                 style={{ marginTop: "12px", width: "100%", display: "flex", justifyContent: "center", gap: "8px", opacity: hasReported ? 0.6 : 1, cursor: hasReported ? "not-allowed" : "pointer" }}
-                onClick={() => !hasReported && setShowReportModal(true)}
+                onClick={() => {
+                  if (!currentUser) {
+                    toast.error("You must be logged in to report an item.");
+                    navigate("/login");
+                    return;
+                  }
+                  if (!hasReported) setShowReportModal(true);
+                }}
                 disabled={hasReported}
               >
                 <AlertTriangle size={16} />

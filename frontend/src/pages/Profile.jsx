@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   User, Shield, ChevronRight, Package, Star, ShoppingBag,
-  LogOut, Edit3, Save, X, Phone, AlignLeft, Trash2, Eye, EyeOff
+  LogOut, Edit3, Save, X, Phone, AlignLeft, Trash2, Eye, EyeOff,
+  ShieldCheck
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { db } from "../firebase";
@@ -191,6 +192,7 @@ function Profile() {
     <div className="profile">
       {/* Profile Card */}
       <div className="profile-card">
+
         {!isEditing && (
           <button className="edit-profile-btn" onClick={() => setIsEditing(true)}>
             <Edit3 size={16} /> Edit Profile
@@ -238,13 +240,13 @@ function Profile() {
             </div>
 
             <div className="form-group edit-form-group">
-              <label>Bio / Hostel Info</label>
+              <label>Bio</label>
               <div className="input-with-icon">
                 <AlignLeft size={16} className="input-icon" style={{ top: '16px', transform: 'none' }} />
                 <textarea
                   value={bio}
                   onChange={e => setBio(e.target.value)}
-                  placeholder="Hostel, Branch, or things you usually sell..."
+                  placeholder="Branch, or things you usually sell..."
                   rows={3}
                   style={{ paddingLeft: '44px' }}
                 />
@@ -264,26 +266,38 @@ function Profile() {
           <>
             <h2>{displayName}</h2>
             <p className="profile-email">{displayEmail}</p>
+
             {phone && <p className="profile-phone"><Phone size={14} /> {phone}</p>}
             {bio && <p className="profile-bio">{bio}</p>}
+
+            {/* Read-Only Verified Data */}
+            {userData?.kerberos_id && (
+              <div className="verified-identity" style={{ marginTop: '1.5rem', background: 'rgba(74, 222, 128, 0.05)', border: '1px solid rgba(74, 222, 128, 0.2)', padding: '1rem', borderRadius: 'var(--radius-md)', textAlign: 'left' }}>
+                <h4 style={{ color: '#4ade80', display: 'flex', alignItems: 'center', gap: '0.5rem', margin: '0 0 0.75rem 0', fontSize: '0.9rem' }}>
+                  <ShieldCheck size={16} /> Verified IITD Details
+                </h4>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', fontSize: '0.85rem' }}>
+                  {userData.entry_number && <div style={{ display: 'flex', gap: '0.5rem' }}><span style={{ color: 'var(--text-muted)' }}>Entry:</span> <span>{userData.entry_number.toUpperCase()}</span></div>}
+                  {userData.kerberos_id && <div style={{ display: 'flex', gap: '0.5rem' }}><span style={{ color: 'var(--text-muted)' }}>Kerberos:</span> <span>{userData.kerberos_id}</span></div>}
+                  {userData.hostel && <div style={{ display: 'flex', gap: '0.5rem', gridColumn: 'span 2' }}><span style={{ color: 'var(--text-muted)' }}>Hostel:</span> <span>{userData.hostel}</span></div>}
+                  {userData.department && <div style={{ display: 'flex', gap: '0.5rem', gridColumn: 'span 2' }}><span style={{ color: 'var(--text-muted)' }}>Dept:</span> <span>{userData.department}</span></div>}
+                </div>
+              </div>
+            )}
+            
+            {/* Profile Statistics Block */}
+            <div className="profile-stats" style={{ opacity: isEditing ? 0.5 : 1, pointerEvents: isEditing ? 'none' : 'auto' }}>
+              <div className="profile-stat">
+                <h3>{listingsCount}</h3>
+                <p>Listings</p>
+              </div>
+              <div className="profile-stat">
+                <h3>{boughtCount}</h3>
+                <p>Bought</p>
+              </div>
+            </div>
           </>
         )}
-
-        {/* Profile Statistics Block */}
-        <div className="profile-stats" style={{ opacity: isEditing ? 0.5 : 1, pointerEvents: isEditing ? 'none' : 'auto' }}>
-          <div className="profile-stat">
-            <h3>{listingsCount}</h3>
-            <p>Listings</p>
-          </div>
-          <div className="profile-stat">
-            <h3>{userData?.rating ? Number(userData.rating).toFixed(1) : "New"}</h3>
-            <p>Rating</p>
-          </div>
-          <div className="profile-stat">
-            <h3>{boughtCount}</h3>
-            <p>Bought</p>
-          </div>
-        </div>
       </div>
 
       {/* Quick Actions & Settings Container */}

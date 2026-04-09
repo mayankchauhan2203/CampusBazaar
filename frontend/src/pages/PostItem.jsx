@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { collection, addDoc, serverTimestamp, query, where, getDocs, doc, updateDoc } from "firebase/firestore";
 import { db } from "../firebase";
 import { Upload, Send, ImagePlus, Tag, DollarSign, FileText, Layers } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
@@ -17,6 +17,8 @@ function PostItem() {
   const [imagePreview, setImagePreview] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [loading, setLoading] = useState(false); // Added loading state
+  const [showPhoneModal, setShowPhoneModal] = useState(false);
+  const [modalPhone, setModalPhone] = useState("");
 
   const navigate = useNavigate();
   const { currentUser, userData, isBlocked } = useAuth();
@@ -30,14 +32,46 @@ function PostItem() {
     }
 
     if (!userData?.phone) {
-      toast.error("Please add your phone number in Profile before listing an item.");
-      navigate("/profile");
+      setShowPhoneModal(true);
       return;
     }
 
+    await executePostItem();
+  }
+
+  async function executePostItem(phoneToSave = null) {
     setSubmitting(true);
 
     try {
+      if (phoneToSave) {
+        const userRef = doc(db, "users", currentUser.uid);
+        await updateDoc(userRef, { phone: phoneToSave });
+      }
+
+      // 1) Rate-limit check: max 2 items per 24 hours
+      const q = query(
+        collection(db, "items"),
+        where("sellerId", "==", currentUser.uid)
+      );
+      const snap = await getDocs(q);
+      const limitTime = Date.now() - 24 * 60 * 60 * 1000;
+      let count24h = 0;
+
+      snap.forEach(doc => {
+        const data = doc.data();
+        if (data.createdAt && typeof data.createdAt.toMillis === 'function') {
+          if (data.createdAt.toMillis() >= limitTime) {
+            count24h++;
+          }
+        }
+      });
+
+      if (count24h >= 2) {
+        toast.error("Daily limit reached: You can only list 2 items per 24 hours.");
+        setSubmitting(false);
+        return;
+      }
+
       let finalImageUrl = "";
       if (imageFile) {
         const formData = new FormData();
@@ -264,6 +298,44 @@ function PostItem() {
           )}
         </div>
       </form>
+
+      {/* Phone Number Modal */}
+      {showPhoneModal && (
+        <div className="reserve-modal-overlay">
+          <div className="reserve-modal">
+            <h2 className="reserve-modal-title">Missing Phone Number</h2>
+            <p className="reserve-modal-subtitle">We need a contact number to list your item. It will be saved to your profile automatically.</p>
+            <form onSubmit={async (e) => {
+              e.preventDefault();
+              if (modalPhone.replace(/\D/g, '').length !== 10) {
+                 toast.error("Please enter a valid 10-digit phone number");
+                 return;
+              }
+              setShowPhoneModal(false);
+              await executePostItem(modalPhone);
+            }}>
+              <div className="form-group" style={{ marginBottom: '24px' }}>
+                <label>Phone Number (10 digits)</label>
+                <input 
+                  type="tel" 
+                  value={modalPhone} 
+                  onChange={(e) => setModalPhone(e.target.value)}
+                  placeholder="e.g. 9876543210"
+                  required 
+                />
+              </div>
+              <div className="edit-actions">
+                <button type="button" className="btn-cancel" onClick={() => setShowPhoneModal(false)}>
+                  Cancel
+                </button>
+                <button type="submit" className="btn-save">
+                  Save & Post
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

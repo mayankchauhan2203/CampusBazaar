@@ -18,7 +18,7 @@ function PrivacyPolicy() {
           <h2 style={{ margin: 0, color: 'var(--text-primary)' }}>1. Data Collection</h2>
         </div>
         <p style={{ color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 'var(--space-xl)' }}>
-          PeerMart collects the minimum amount of data required to run the campus marketplace securely. This includes your institutional email address (e.g., student@iitd.ac.in), your display name, and an optional phone number necessary for reserving items. We also aggregate data related to your item listings and transaction history.
+          PeerMart collects the minimum amount of data required to run the campus marketplace securely. This includes your institutional email address (e.g., kerberos@iitd.ac.in), your display name, and an optional phone number necessary for reserving items. We also aggregate data related to your item listings and transaction history.
         </p>
 
         <div style={{ borderBottom: '1px solid var(--border-subtle)', paddingBottom: 'var(--space-md)', marginBottom: 'var(--space-lg)' }}>

@@ -36,7 +36,9 @@ function AdminDashboard() {
     return users.filter(u =>
       (u.name || "").toLowerCase().includes(term) ||
       (u.email || "").toLowerCase().includes(term) ||
-      (u.phone || "").toLowerCase().includes(term)
+      (u.phone || "").toLowerCase().includes(term) ||
+      (u.kerberos_id || "").toLowerCase().includes(term) ||
+      (u.entry_number || "").toLowerCase().includes(term)
     );
   }, [users, userSearch]);
 
@@ -124,10 +126,12 @@ function AdminDashboard() {
         sellerName: order.sellerName || "Unknown",
         sellerEmail: order.sellerEmail || "N/A",
         sellerPhone: order.sellerPhone || "N/A",
+        sellerEntryNumber: order.sellerEntryNumber || "",
         buyerId: order.reservedBy || null,
         buyerName: order.reservedByName || "Unknown",
         buyerEmail: order.reservedByEmail || "N/A",
         buyerPhone: order.buyerPhone || "N/A",
+        buyerEntryNumber: order.buyerEntryNumber || "",
         completedAt: serverTimestamp(),
       });
 
@@ -230,13 +234,19 @@ function AdminDashboard() {
           if (item.sellerId) {
             try {
               const s = await getDoc(doc(db, "users", item.sellerId));
-              if (s.exists()) sellerPhone = s.data().phone || "No phone";
+              if (s.exists()) {
+                sellerPhone = s.data().phone || "No phone";
+                item.sellerEntryNumber = s.data().entry_number || "";
+              }
             } catch (e) { console.error(e); }
           }
           if (item.reservedBy) {
             try {
               const b = await getDoc(doc(db, "users", item.reservedBy));
-              if (b.exists()) buyerPhone = b.data().phone || "No phone";
+              if (b.exists()) {
+                buyerPhone = b.data().phone || "No phone";
+                item.buyerEntryNumber = b.data().entry_number || "";
+              }
             } catch (e) { console.error(e); }
           }
           return { ...item, sellerPhone, buyerPhone };
@@ -327,12 +337,14 @@ function AdminDashboard() {
                       <p className="admin-contact-name">{order.sellerName || "Unknown"}</p>
                       <p className="admin-contact-detail"><Mail size={13} /> {order.sellerEmail || "N/A"}</p>
                       <p className="admin-contact-detail"><Phone size={13} /> {order.sellerPhone}</p>
+                      {order.sellerEntryNumber && <p className="admin-contact-detail" style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Entry: {order.sellerEntryNumber.toUpperCase()}</p>}
                     </div>
                     <div className="admin-order-section">
                       <h3 className="admin-section-heading"><User size={15} /> Buyer (Reserved By)</h3>
                       <p className="admin-contact-name">{order.reservedByName || "Unknown"}</p>
                       <p className="admin-contact-detail"><Mail size={13} /> {order.reservedByEmail || "N/A"}</p>
                       <p className="admin-contact-detail"><Phone size={13} /> {order.buyerPhone}</p>
+                      {order.buyerEntryNumber && <p className="admin-contact-detail" style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Entry: {order.buyerEntryNumber.toUpperCase()}</p>}
                     </div>
                     <div className="admin-order-actions">
                       <button className="admin-btn-cancel" onClick={() => handleUnreserve(order)}>
@@ -394,12 +406,14 @@ function AdminDashboard() {
                       <p className="admin-contact-name">{order.sellerName}</p>
                       <p className="admin-contact-detail"><Mail size={13} /> {order.sellerEmail}</p>
                       <p className="admin-contact-detail"><Phone size={13} /> {order.sellerPhone}</p>
+                      {order.sellerEntryNumber && <p className="admin-contact-detail" style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Entry: {order.sellerEntryNumber.toUpperCase()}</p>}
                     </div>
                     <div className="admin-order-section">
                       <h3 className="admin-section-heading"><User size={15} /> Buyer</h3>
                       <p className="admin-contact-name">{order.buyerName}</p>
                       <p className="admin-contact-detail"><Mail size={13} /> {order.buyerEmail}</p>
                       <p className="admin-contact-detail"><Phone size={13} /> {order.buyerPhone}</p>
+                      {order.buyerEntryNumber && <p className="admin-contact-detail" style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Entry: {order.buyerEntryNumber.toUpperCase()}</p>}
                     </div>
                   </div>
                 ))}
@@ -432,7 +446,7 @@ function AdminDashboard() {
               <Search size={16} className="admin-user-search-icon" />
               <input
                 type="text"
-                placeholder="Search by name, email or phone..."
+                placeholder="Search by name, email, phone, or entry number..."
                 value={userSearch}
                 onChange={e => setUserSearch(e.target.value)}
                 className="admin-user-search-input"
@@ -461,6 +475,13 @@ function AdminDashboard() {
                       </h4>
                       <p className="admin-contact-detail"><Mail size={13} /> {user.email || "N/A"}</p>
                       {user.phone && <p className="admin-contact-detail"><Phone size={13} /> {user.phone}</p>}
+                      {(user.entry_number || user.department || user.hostel) && (
+                        <div style={{ marginTop: '4px', fontSize: '11px', color: 'var(--text-muted)', display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '2px 8px' }}>
+                          {user.entry_number && <><span style={{fontWeight:600}}>Entry:</span><span>{user.entry_number.toUpperCase()}</span></>}
+                          {user.department && <><span style={{fontWeight:600}}>Dept:</span><span>{user.department}</span></>}
+                          {user.hostel && <><span style={{fontWeight:600}}>Hostel:</span><span>{user.hostel}</span></>}
+                        </div>
+                      )}
                       {user.bio && <p className="admin-user-bio">{user.bio}</p>}
                     </div>
                     <div className="admin-user-meta">

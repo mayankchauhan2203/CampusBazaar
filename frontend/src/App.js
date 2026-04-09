@@ -68,22 +68,8 @@ function App() {
                   </ProtectedRoute>
                 }
               />
-              <Route
-                path="/marketplace"
-                element={
-                  <ProtectedRoute>
-                    <Marketplace />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/item/:id"
-                element={
-                  <ProtectedRoute>
-                    <ItemDetails />
-                  </ProtectedRoute>
-                }
-              />
+              <Route path="/marketplace" element={<Marketplace />} />
+              <Route path="/item/:id" element={<ItemDetails />} />
               <Route
                 path="/post-item"
                 element={

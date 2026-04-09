@@ -7,7 +7,7 @@ import toast from "react-hot-toast";
 const AuthContext = createContext();
 
 // Admin emails — checked against Firestore email (works with custom token UIDs)
-const ADMIN_EMAILS = ["mayank@iitd.ac.in", "admin@iitd.ac.in", "pushkin@iitd.ac.in"];
+const ADMIN_EMAILS = ["mt6240676@maths.iitd.ac.in", "mayank@iitd.ac.in", "admin@iitd.ac.in", "pushkin@iitd.ac.in"];
 
 export function useAuth() {
   return useContext(AuthContext);
@@ -54,13 +54,13 @@ export function AuthProvider({ children }) {
 
       // 5. Redirect to IITD authorize endpoint (Modern API)
       const params = new URLSearchParams({
-        response_type:         "code",
-        client_id:             "42abb3bfcb640147e23d8f74609e9601",
-        redirect_uri:          `${window.location.origin}/auth/callback`,
-        state:                 state,
-        code_challenge:        codeChallenge,
+        response_type: "code",
+        client_id: "42abb3bfcb640147e23d8f74609e9601",
+        redirect_uri: `${window.location.origin}/auth/callback`,
+        state: state,
+        code_challenge: codeChallenge,
         code_challenge_method: "S256",
-        scope:                 "openid profile email",
+        scope: "openid profile email",
       });
 
       window.location.href = `https://auth.devclub.in/api/oauth/authorize?${params}`;
@@ -117,7 +117,7 @@ export function AuthProvider({ children }) {
         // those come from IITD userinfo and are written by IITDCallback.
         // Only include them here when they are non-empty.
         if (user.displayName) upsertData.name = user.displayName;
-        if (user.email)       upsertData.email = user.email;
+        if (user.email) upsertData.email = user.email;
 
         setDoc(doc(db, "users", user.uid), upsertData, { merge: true }).catch(
           (e) => console.warn("Could not upsert user doc:", e)

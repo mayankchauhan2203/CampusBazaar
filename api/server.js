@@ -60,7 +60,7 @@ function extractPhone(obj) {
   return (
     obj?.mobile_number ||
     obj?.phone ||
-    obj?.mobile ||
+    obj?.mobileNo ||
     obj?.contact ||
     obj?.telephone ||
     obj?.phone_number ||
@@ -94,9 +94,6 @@ function extractEntryNumber(obj) {
   );
 }
 
-function extractCategory(obj) {
-  return obj?.category || obj?.caste_category || "";
-}
 
 // ── Merge two objects; non-empty value from `a` wins over `b` ─────────────────
 function mergeUserData(primary, fallback) {
@@ -105,14 +102,13 @@ function mergeUserData(primary, fallback) {
     return v || extractFn(fallback);
   };
   return {
-    kerberos:     pick(extractKerberos),
-    name:         pick(extractName),
-    email:        pick(extractEmail),
-    phone:        pick(extractPhone),
-    department:   pick(extractDepartment),
-    hostel:       pick(extractHostel),
+    kerberos: pick(extractKerberos),
+    name: pick(extractName),
+    email: pick(extractEmail),
+    phone: pick(extractPhone),
+    department: pick(extractDepartment),
+    hostel: pick(extractHostel),
     entry_number: pick(extractEntryNumber),
-    category:     pick(extractCategory),
   };
 }
 
@@ -129,18 +125,18 @@ app.post("/api/auth/iitd/token", async (req, res) => {
 
     // ── Step 1: Exchange authorization code with IITD ─────────────────────────
     const tokenParams = new URLSearchParams({
-      grant_type:    "authorization_code",
+      grant_type: "authorization_code",
       code,
-      redirect_uri:  process.env.REACT_APP_IITD_REDIRECT_URI,
-      client_id:     process.env.REACT_APP_IITD_CLIENT_ID,
+      redirect_uri: process.env.REACT_APP_IITD_REDIRECT_URI,
+      client_id: process.env.REACT_APP_IITD_CLIENT_ID,
       client_secret: process.env.REACT_APP_IITD_CLIENT_SECRET,
       code_verifier,
     });
 
     const tokenRes = await fetch(`${IITD_BASE_URL}/api/oauth/token`, {
-      method:  "POST",
+      method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body:    tokenParams.toString(),
+      body: tokenParams.toString(),
     });
 
     const tokenData = await tokenRes.json();
@@ -195,16 +191,26 @@ app.post("/api/auth/iitd/token", async (req, res) => {
       return res.status(400).json({ error: "Could not determine user identity from IITD. Please try again." });
     }
 
+    // Enforce IITD-only access: reject non-@iitd.ac.in accounts
+    const email = merged.email || "";
+    const deptartment = merged.department || "";
+    if (!email.endsWith("@" + deptartment + ".iitd.ac.in")) {
+      console.warn(`[AUTH] Rejected non-IITD login attempt: ${email || "(no email)"}`);
+      return res.status(403).json({
+        error: "Access restricted to IIT Delhi accounts only. Please sign in with your @iitd.ac.in email.",
+      });
+    }
+
     const uid = `iitd_${kerberos}`;
 
     const customToken = await admin.auth().createCustomToken(uid, {
-      kerberos_id:  kerberos,
-      email:        merged.email,
-      name:         merged.name,
+      kerberos_id: kerberos,
+      email: merged.email,
+      name: merged.name,
       entry_number: merged.entry_number,
-      department:   merged.department,
-      hostel:       merged.hostel,
-      phone:        merged.phone,
+      department: merged.department,
+      hostel: merged.hostel,
+      phone: merged.phone,
     });
 
     console.log(`[AUTH] Custom token minted for ${merged.email || kerberos}`);
@@ -212,14 +218,14 @@ app.post("/api/auth/iitd/token", async (req, res) => {
     res.json({
       customToken,
       userInfo: {
-        name:         merged.name,
-        email:        merged.email,
-        kerberos_id:  kerberos,
+        name: merged.name,
+        email: merged.email,
+        kerberos_id: kerberos,
         entry_number: merged.entry_number,
-        department:   merged.department,
-        hostel:       merged.hostel,
-        category:     merged.category,
-        phone:        merged.phone,
+        department: merged.department,
+        hostel: merged.hostel,
+        category: merged.category,
+        phone: merged.phone,
       },
     });
   } catch (err) {
