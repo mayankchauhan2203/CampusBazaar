@@ -13,7 +13,7 @@ admin.initializeApp({
 const app = express();
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL || "http://localhost:3000",
+    origin: process.env.REACT_APP_FRONTEND_URL || "http://localhost:3000",
     methods: ["GET", "POST"],
     credentials: true,
   })
@@ -35,18 +35,18 @@ app.post("/api/auth/iitd/token", async (req, res) => {
 
     // Step 1: Exchange authorization code with IITD
     const tokenParams = new URLSearchParams({
-      grant_type:    "authorization_code",
+      grant_type: "authorization_code",
       code,
-      redirect_uri:  process.env.IITD_REDIRECT_URI,
-      client_id:     process.env.IITD_CLIENT_ID,
-      client_secret: process.env.IITD_CLIENT_SECRET,
+      redirect_uri: process.env.REACT_APP_IITD_REDIRECT_URI,
+      client_id: process.env.REACT_APP_IITD_CLIENT_ID,
+      client_secret: process.env.REACT_APP_IITD_CLIENT_SECRET,
       code_verifier,
     });
 
     const tokenRes = await fetch(`${IITD_BASE_URL}/api/oauth/token`, {
-      method:  "POST",
+      method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body:    tokenParams.toString(),
+      body: tokenParams.toString(),
     });
 
     const tokenData = await tokenRes.json();
@@ -63,7 +63,11 @@ app.post("/api/auth/iitd/token", async (req, res) => {
       headers: { Authorization: `Bearer ${tokenData.access_token}` },
     });
 
-    const userInfo = await userRes.json();
+    const rawUserInfo = await userRes.json();
+    console.log("[IITD] Raw UserInfo:", rawUserInfo);
+    
+    // Extract actual user data (handles flat or nested structures)
+    const userInfo = rawUserInfo.user || rawUserInfo.data || rawUserInfo.profile || rawUserInfo;
 
     if (!userRes.ok) {
       console.error("[IITD] Userinfo fetch failed:", userInfo);
@@ -77,12 +81,13 @@ app.post("/api/auth/iitd/token", async (req, res) => {
 
     const customToken = await admin.auth().createCustomToken(uid, {
       // Custom claims — accessible via getIdTokenResult() on the frontend
-      kerberos_id:  kerberos,
-      email:        userInfo.email || userInfo.mail || "",
-      name:         userInfo.name         || "",
+      kerberos_id: kerberos,
+      email: userInfo.email || userInfo.mail || "",
+      name: userInfo.name || "",
       entry_number: userInfo.entry_number || "",
-      department:   userInfo.department   || "",
-      hostel:       userInfo.hostel       || "",
+      department: userInfo.department || "",
+      hostel: userInfo.hostel || "",
+      phone: userInfo.phone || userInfo.mobile || userInfo.contact || "",
     });
 
     console.log(`[AUTH] Custom token minted for ${userInfo.email || userInfo.mail || kerberos}`);
@@ -90,13 +95,14 @@ app.post("/api/auth/iitd/token", async (req, res) => {
     res.json({
       customToken,
       userInfo: {
-        name:         userInfo.name         || "",
-        email:        userInfo.email || userInfo.mail || "",
-        kerberos_id:  kerberos,
+        name: userInfo.name || "",
+        email: userInfo.email || userInfo.mail || "",
+        kerberos_id: kerberos,
         entry_number: userInfo.entry_number || "",
-        department:   userInfo.department   || "",
-        hostel:       userInfo.hostel       || "",
-        category:     userInfo.category     || "",
+        department: userInfo.department || "",
+        hostel: userInfo.hostel || "",
+        category: userInfo.category || "",
+        phone: userInfo.phone || userInfo.mobile || userInfo.contact || "",
       },
     });
   } catch (err) {
@@ -110,10 +116,10 @@ app.get("/api/auth/status", (_req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.REACT_APP_PORT || 5000;
 app.listen(PORT, () => {
   console.log(`\n🚀 PeerMart auth server running on http://localhost:${PORT}`);
   console.log(`   Firebase Admin: ✅ Initialised`);
   console.log(`   IITD OAuth:     ${IITD_BASE_URL}`);
-  console.log(`   Redirect URI:   ${process.env.IITD_REDIRECT_URI || "(not set)"}\n`);
+  console.log(`   Redirect URI:   ${process.env.REACT_APP_IITD_REDIRECT_URI || "(not set)"}\n`);
 });

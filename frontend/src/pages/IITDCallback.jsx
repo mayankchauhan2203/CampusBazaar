@@ -101,9 +101,10 @@ function IITDCallback() {
           department:   userInfo.department    || "",
           hostel:       userInfo.hostel        || "",
           category:     userInfo.category      || "",
+          phone:        userInfo.phone         || "",
           lastLogin:    new Date().toISOString(),
-          // Only set createdAt on first login
-          ...(!existing.exists() && { createdAt: new Date().toISOString() }),
+          // Only set createdAt on first robust login
+          ...((!existing.exists() || !existing.data()?.createdAt) && { createdAt: new Date().toISOString() }),
         },
         { merge: true }
       );
