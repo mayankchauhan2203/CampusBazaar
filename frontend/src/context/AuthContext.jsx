@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { signOut, onAuthStateChanged, deleteUser } from "firebase/auth";
 import { auth, db } from "../firebase";
-import { doc, deleteDoc, onSnapshot, setDoc } from "firebase/firestore";
+import { doc, deleteDoc, onSnapshot, setDoc, query, collection, where, getDocs, updateDoc, deleteField } from "firebase/firestore";
 import toast from "react-hot-toast";
 
 const AuthContext = createContext();
@@ -80,9 +80,36 @@ export function AuthProvider({ children }) {
     if (!currentUser) return { success: false, error: "No active user" };
 
     try {
+      // 1. Delete all active listings by the user
+      const sellerQ = query(collection(db, "items"), where("sellerId", "==", currentUser.uid));
+      const sellerDocs = await getDocs(sellerQ);
+      await Promise.all(sellerDocs.docs.map(d => deleteDoc(d.ref)));
+
+      // 2. Cancel all reservations made by the user
+      const reserveQ = query(collection(db, "items"), where("reservedBy", "==", currentUser.uid));
+      const reserveDocs = await getDocs(reserveQ);
+      await Promise.all(reserveDocs.docs.map(d => updateDoc(d.ref, {
+        status: "available",
+        reservedBy: deleteField(),
+        reservedByName: deleteField(),
+        reservedByEmail: deleteField(),
+        reservedAt: deleteField(),
+      })));
+
+      // 3. Delete any reports made by this user
+      const reportQ = query(collection(db, "reports"), where("reporterId", "==", currentUser.uid));
+      const reportDocs = await getDocs(reportQ);
+      await Promise.all(reportDocs.docs.map(d => deleteDoc(d.ref)));
+
+      // 4. Delete any notifications targeted for this user
+      const notifyQ = query(collection(db, "notifications"), where("recipientId", "==", currentUser.uid));
+      const notifyDocs = await getDocs(notifyQ);
+      await Promise.all(notifyDocs.docs.map(d => deleteDoc(d.ref)));
+
+      // 5. Delete the main user document
       await deleteDoc(doc(db, "users", currentUser.uid));
     } catch (e) {
-      console.warn("Could not delete Firestore doc:", e);
+      console.warn("Could not selectively delete cascaded Firestore documents:", e);
     }
 
     try {
