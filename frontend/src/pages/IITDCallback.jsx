@@ -19,7 +19,10 @@ function IITDCallback() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    handleCallback();
+    // Guard against React StrictMode double-invocation — once the code is consumed, don't retry
+    if (sessionStorage.getItem("pkce_code_verifier")) {
+      handleCallback();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

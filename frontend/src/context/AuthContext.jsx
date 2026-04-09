@@ -60,10 +60,8 @@ export function AuthProvider({ children }) {
         state:                 state,
         code_challenge:        codeChallenge,
         code_challenge_method: "S256",
+        scope:                 "openid profile email",
       });
-
-      // Passing scope as an empty string or omitting it entirely to avoid the generic IITD form crash
-      // params.append("scope", "openid");
 
       window.location.href = `https://auth.devclub.in/api/oauth/authorize?${params}`;
     } catch (err) {
