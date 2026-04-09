@@ -22,6 +22,100 @@ app.use(express.json());
 
 const IITD_BASE_URL = "https://auth.devclub.in";
 
+// ── Decode JWT payload without signature verification ─────────────────────────
+// Safe here because we received the token directly from IITD over HTTPS.
+function decodeJwtPayload(token) {
+  try {
+    const parts = token.split(".");
+    if (parts.length !== 3) return null;
+    const payload = Buffer.from(parts[1], "base64url").toString("utf-8");
+    return JSON.parse(payload);
+  } catch {
+    return null;
+  }
+}
+
+// ── Robust field extractors (handle all known IITD field name variants) ───────
+function extractKerberos(obj) {
+  return (
+    obj?.kerberos ||
+    obj?.kerberos_id ||
+    obj?.uid ||
+    obj?.user_id ||
+    obj?.uniqueiitdid ||
+    obj?.sub ||
+    ""
+  );
+}
+
+function extractName(obj) {
+  return obj?.name || obj?.cn || obj?.displayName || obj?.full_name || "";
+}
+
+function extractEmail(obj) {
+  return obj?.email || obj?.mail || "";
+}
+
+function extractPhone(obj) {
+  return (
+    obj?.mobile_number ||
+    obj?.phone ||
+    obj?.mobile ||
+    obj?.contact ||
+    obj?.telephone ||
+    obj?.phone_number ||
+    ""
+  );
+}
+
+function extractDepartment(obj) {
+  return obj?.department || obj?.dept || obj?.ou || obj?.departmentNumber || "";
+}
+
+function extractHostel(obj) {
+  return (
+    obj?.hostel ||
+    obj?.hostel_name ||
+    obj?.hostelName ||
+    obj?.hall ||
+    obj?.hall_name ||
+    ""
+  );
+}
+
+function extractEntryNumber(obj) {
+  return (
+    obj?.entry_number ||
+    obj?.roll ||
+    obj?.roll_number ||
+    obj?.entryNumber ||
+    obj?.roll_no ||
+    ""
+  );
+}
+
+function extractCategory(obj) {
+  return obj?.category || obj?.caste_category || "";
+}
+
+// ── Merge two objects; non-empty value from `a` wins over `b` ─────────────────
+function mergeUserData(primary, fallback) {
+  const pick = (extractFn) => {
+    const v = extractFn(primary);
+    return v || extractFn(fallback);
+  };
+  return {
+    kerberos:     pick(extractKerberos),
+    name:         pick(extractName),
+    email:        pick(extractEmail),
+    phone:        pick(extractPhone),
+    department:   pick(extractDepartment),
+    hostel:       pick(extractHostel),
+    entry_number: pick(extractEntryNumber),
+    category:     pick(extractCategory),
+  };
+}
+
 // ── Main endpoint: IITD token exchange → Firebase Custom Token ────────────────
 app.post("/api/auth/iitd/token", async (req, res) => {
   try {
@@ -33,20 +127,20 @@ app.post("/api/auth/iitd/token", async (req, res) => {
         .json({ error: "Missing required fields: code, code_verifier" });
     }
 
-    // Step 1: Exchange authorization code with IITD
+    // ── Step 1: Exchange authorization code with IITD ─────────────────────────
     const tokenParams = new URLSearchParams({
-      grant_type: "authorization_code",
+      grant_type:    "authorization_code",
       code,
-      redirect_uri: process.env.REACT_APP_IITD_REDIRECT_URI,
-      client_id: process.env.REACT_APP_IITD_CLIENT_ID,
+      redirect_uri:  process.env.REACT_APP_IITD_REDIRECT_URI,
+      client_id:     process.env.REACT_APP_IITD_CLIENT_ID,
       client_secret: process.env.REACT_APP_IITD_CLIENT_SECRET,
       code_verifier,
     });
 
     const tokenRes = await fetch(`${IITD_BASE_URL}/api/oauth/token`, {
-      method: "POST",
+      method:  "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: tokenParams.toString(),
+      body:    tokenParams.toString(),
     });
 
     const tokenData = await tokenRes.json();
@@ -58,51 +152,74 @@ app.post("/api/auth/iitd/token", async (req, res) => {
       });
     }
 
-    // Step 2: Fetch user info from IITD
-    const userRes = await fetch(`${IITD_BASE_URL}/api/oauth/userinfo`, {
-      headers: { Authorization: `Bearer ${tokenData.access_token}` },
-    });
+    // Decode the id_token JWT for user claims (primary source if userinfo fails)
+    const idTokenClaims = tokenData.id_token
+      ? decodeJwtPayload(tokenData.id_token)
+      : null;
 
-    const rawUserInfo = await userRes.json();
-    console.log("[IITD] Raw UserInfo:", rawUserInfo);
-    
-    // Extract actual user data (handles flat or nested structures)
-    const userInfo = rawUserInfo.user || rawUserInfo.data || rawUserInfo.profile || rawUserInfo;
+    console.log("[IITD] id_token claims:", idTokenClaims);
 
-    if (!userRes.ok) {
-      console.error("[IITD] Userinfo fetch failed:", userInfo);
-      return res.status(400).json({ error: "Failed to fetch user info from IITD" });
+    // ── Step 2: Fetch userinfo from IITD ──────────────────────────────────────
+    let rawUserInfo = null;
+    try {
+      const userRes = await fetch(`${IITD_BASE_URL}/api/oauth/userinfo`, {
+        headers: { Authorization: `Bearer ${tokenData.access_token}` },
+      });
+
+      if (userRes.ok) {
+        rawUserInfo = await userRes.json();
+        console.log("[IITD] Raw userinfo response:", rawUserInfo);
+      } else {
+        console.warn("[IITD] Userinfo endpoint returned", userRes.status, "— falling back to id_token claims");
+      }
+    } catch (e) {
+      console.warn("[IITD] Userinfo fetch threw error:", e.message, "— falling back to id_token claims");
     }
 
-    // Step 3: Mint a Firebase Custom Token
-    // Use kerberos_id as the stable UID (prefixed to avoid conflicts)
-    const kerberos = userInfo.user_id || userInfo.kerberos_id || userInfo.uniqueiitdid || userInfo.sub || "";
+    // Unwrap nested structures: { user: {...} }, { data: {...} }, { profile: {...} }
+    const unwrapped =
+      rawUserInfo?.user ||
+      rawUserInfo?.data ||
+      rawUserInfo?.profile ||
+      rawUserInfo ||
+      {};
+
+    // Merge userinfo + id_token claims (userinfo wins, id_token is fallback)
+    const merged = mergeUserData(unwrapped, idTokenClaims || {});
+    console.log("[IITD] Merged user data:", merged);
+
+    // ── Step 3: Mint Firebase Custom Token ────────────────────────────────────
+    const kerberos = merged.kerberos;
+    if (!kerberos) {
+      console.error("[IITD] Could not determine kerberos ID. unwrapped:", unwrapped, "idTokenClaims:", idTokenClaims);
+      return res.status(400).json({ error: "Could not determine user identity from IITD. Please try again." });
+    }
+
     const uid = `iitd_${kerberos}`;
 
     const customToken = await admin.auth().createCustomToken(uid, {
-      // Custom claims — accessible via getIdTokenResult() on the frontend
-      kerberos_id: kerberos,
-      email: userInfo.email || userInfo.mail || "",
-      name: userInfo.name || "",
-      entry_number: userInfo.entry_number || "",
-      department: userInfo.department || "",
-      hostel: userInfo.hostel || "",
-      phone: userInfo.phone || userInfo.mobile || userInfo.contact || "",
+      kerberos_id:  kerberos,
+      email:        merged.email,
+      name:         merged.name,
+      entry_number: merged.entry_number,
+      department:   merged.department,
+      hostel:       merged.hostel,
+      phone:        merged.phone,
     });
 
-    console.log(`[AUTH] Custom token minted for ${userInfo.email || userInfo.mail || kerberos}`);
+    console.log(`[AUTH] Custom token minted for ${merged.email || kerberos}`);
 
     res.json({
       customToken,
       userInfo: {
-        name: userInfo.name || "",
-        email: userInfo.email || userInfo.mail || "",
-        kerberos_id: kerberos,
-        entry_number: userInfo.entry_number || "",
-        department: userInfo.department || "",
-        hostel: userInfo.hostel || "",
-        category: userInfo.category || "",
-        phone: userInfo.phone || userInfo.mobile || userInfo.contact || "",
+        name:         merged.name,
+        email:        merged.email,
+        kerberos_id:  kerberos,
+        entry_number: merged.entry_number,
+        department:   merged.department,
+        hostel:       merged.hostel,
+        category:     merged.category,
+        phone:        merged.phone,
       },
     });
   } catch (err) {

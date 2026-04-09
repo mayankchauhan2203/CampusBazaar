@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState } from "react";
-import { signOut, onAuthStateChanged, deleteUser, updateProfile } from "firebase/auth";
+import { signOut, onAuthStateChanged, deleteUser } from "firebase/auth";
 import { auth, db } from "../firebase";
 import { doc, deleteDoc, onSnapshot, setDoc } from "firebase/firestore";
 import toast from "react-hot-toast";
@@ -111,10 +111,15 @@ export function AuthProvider({ children }) {
       if (user) {
         setCurrentUser(user);
 
-        // Keep a minimal Firestore doc in sync (uid always present)
+        // Keep a minimal Firestore doc in sync (uid always present).
+        // Only write fields that are actually present on the Firebase Auth object
+        // to avoid overwriting richer IITD profile data saved during IITDCallback.
         const upsertData = { uid: user.uid };
+        // Custom-token users have no email/displayName on the Auth object itself —
+        // those come from IITD userinfo and are written by IITDCallback.
+        // Only include them here when they are non-empty.
         if (user.displayName) upsertData.name = user.displayName;
-        if (user.email) upsertData.email = user.email;
+        if (user.email)       upsertData.email = user.email;
 
         setDoc(doc(db, "users", user.uid), upsertData, { merge: true }).catch(
           (e) => console.warn("Could not upsert user doc:", e)
