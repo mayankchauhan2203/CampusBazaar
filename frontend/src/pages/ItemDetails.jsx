@@ -421,7 +421,7 @@ function ItemDetails() {
           <div>
             <span className="item-details-category">{item.category}</span>
             <h1 className="item-details-title">{item.title}</h1>
-            <div className="item-details-price">₹{Math.round(item.price * 1.08)}</div>
+            <div className="item-details-price">₹{item.price}</div>
           </div>
 
           <div className="item-details-description">

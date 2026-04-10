@@ -49,9 +49,7 @@ function Marketplace() {
     if (item.sellerBlocked) {
       return false; // Hide items from blocked sellers
     }
-    if (currentUser && item.sellerId === currentUser.uid) {
-      return false;
-    }
+
     const matchesSearch =
       item.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       item.description?.toLowerCase().includes(searchQuery.toLowerCase());
@@ -155,9 +153,9 @@ function Marketplace() {
       {!loading && filteredItems.length > 0 && (
         <div className="marketplace-grid">
           {filteredItems.map((item) => (
-            <div 
-              key={item.id} 
-              className="product-card" 
+            <div
+              key={item.id}
+              className="product-card"
               id={`product-${item.id}`}
               onClick={() => navigate(`/item/${item.id}`)}
               style={{ cursor: "pointer", transition: "transform 0.2s, box-shadow 0.2s" }}
@@ -184,7 +182,7 @@ function Marketplace() {
 
               <div className="product-card-body">
                 <h3>{item.title}</h3>
-                <div className="price">₹{Math.round(item.price * 1.08)}</div>
+                <div className="price">₹{item.price}</div>
               </div>
             </div>
           ))}

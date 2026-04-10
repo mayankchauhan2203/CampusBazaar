@@ -91,7 +91,7 @@ function Home() {
                 </div>
                 <div>
                   <h4 style={{ margin: '0 0 4px 0', fontSize: '14px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: 'var(--text-primary)' }}>{item.title}</h4>
-                  <div className="gradient-text" style={{ fontSize: '16px', fontWeight: 'bold' }}>₹{Math.round(item.price * 1.08)}</div>
+                  <div className="gradient-text" style={{ fontSize: '16px', fontWeight: 'bold' }}>₹{item.price}</div>
                 </div>
               </div>
             ))
