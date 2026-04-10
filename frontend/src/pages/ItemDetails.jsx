@@ -543,6 +543,42 @@ function ItemDetails() {
             </p>
           </div>
 
+          {/* Admin-only: Seller Info */}
+          {isAdmin && (
+            <div style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "12px",
+              padding: "var(--space-md) var(--space-lg)",
+              background: "rgba(244,163,0,0.06)",
+              border: "1px solid rgba(244,163,0,0.25)",
+              borderRadius: "var(--radius-md)",
+              marginBottom: "var(--space-sm)",
+            }}>
+              <div style={{
+                width: 36, height: 36, borderRadius: "50%",
+                background: "var(--accent-gradient)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                flexShrink: 0, fontSize: "14px", fontWeight: 700, color: "#000"
+              }}>
+                {(item.sellerName || "?").charAt(0).toUpperCase()}
+              </div>
+              <div>
+                <p style={{ margin: 0, fontSize: "11px", color: "var(--accent-primary)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                  Listed by (Admin View)
+                </p>
+                <p style={{ margin: "2px 0 0", fontSize: "14px", fontWeight: 600, color: "var(--text-primary)" }}>
+                  {item.sellerName || "Unknown"}
+                </p>
+                {item.sellerEmail && (
+                  <p style={{ margin: "1px 0 0", fontSize: "12px", color: "var(--text-muted)" }}>
+                    {item.sellerEmail}
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+
           <div className="item-details-action">
             {item.sellerId === currentUser?.uid ? (
               <button className="buy-btn item-details-btn" disabled>

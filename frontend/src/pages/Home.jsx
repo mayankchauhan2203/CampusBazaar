@@ -89,9 +89,19 @@ function Home() {
                     <Package size={32} color="var(--text-muted)" />
                   )}
                 </div>
-                <div>
-                  <h4 style={{ margin: '0 0 4px 0', fontSize: '14px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: 'var(--text-primary)' }}>{item.title}</h4>
-                  <div className="gradient-text" style={{ fontSize: '16px', fontWeight: 'bold' }}>₹{item.price}</div>
+                <div style={{ overflow: 'hidden' }}>
+                  <h4 style={{
+                    margin: '0 0 4px 0',
+                    fontSize: '13px',
+                    lineHeight: 1.35,
+                    display: '-webkit-box',
+                    WebkitLineClamp: 2,
+                    WebkitBoxOrient: 'vertical',
+                    overflow: 'hidden',
+                    color: 'var(--text-primary)',
+                    minHeight: '35px',
+                  }}>{item.title}</h4>
+                  <div className="gradient-text" style={{ fontSize: '14px', fontWeight: 700 }}>₹{item.price}</div>
                 </div>
               </div>
             ))
