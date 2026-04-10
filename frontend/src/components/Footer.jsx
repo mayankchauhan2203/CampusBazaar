@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Github, Twitter, Instagram } from "lucide-react";
+import { Github, Twitter, Instagram, Linkedin } from "lucide-react";
 
 function Footer() {
   return (
@@ -51,13 +51,13 @@ function Footer() {
       <div className="footer-bottom">
         <p>&copy; {new Date().getFullYear()} PeerMart. Built for students, by students.</p>
         <div className="footer-social">
-          <a href="#github" aria-label="GitHub">
+          <a href="https://github.com/mayankchauhan2203" aria-label="GitHub">
             <Github size={16} />
           </a>
-          <a href="#twitter" aria-label="Twitter">
-            <Twitter size={16} />
+          <a href="https://www.linkedin.com/in/mayank-chauhan-mc2203" aria-label="LinkedIn">
+            <Linkedin size={16} />
           </a>
-          <a href="#instagram" aria-label="Instagram">
+          <a href="https://www.instagram.com/myself_mayankchauhan?igsh=MWNlbzBtdzJoeDZjdQ==" aria-label="Instagram">
             <Instagram size={16} />
           </a>
         </div>

@@ -245,7 +245,7 @@ function Profile() {
                 <h4 style={{ color: '#4ade80', display: 'flex', alignItems: 'center', gap: '0.5rem', margin: '0 0 0.75rem 0', fontSize: '0.9rem' }}>
                   <ShieldCheck size={16} /> Verified IITD Details
                 </h4>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', fontSize: '0.85rem' }}>
+                <div className="verified-identity-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', fontSize: '0.85rem' }}>
                   {userData.entry_number && <div style={{ display: 'flex', gap: '0.5rem' }}><span style={{ color: 'var(--text-muted)' }}>Entry:</span> <span>{userData.entry_number.toUpperCase()}</span></div>}
                   {userData.kerberos_id && <div style={{ display: 'flex', gap: '0.5rem' }}><span style={{ color: 'var(--text-muted)' }}>Kerberos:</span> <span>{userData.kerberos_id}</span></div>}
                   {userData.hostel && <div style={{ display: 'flex', gap: '0.5rem', gridColumn: 'span 2' }}><span style={{ color: 'var(--text-muted)' }}>Hostel:</span> <span>{userData.hostel}</span></div>}

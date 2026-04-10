@@ -198,18 +198,6 @@ function PostItem() {
               placeholder="Describe your item — condition, age, reason for selling..."
               value={description} onChange={e => setDescription(e.target.value)} rows={5} required />
           </div>
-
-          <button type="submit" className="submit-btn"
-            disabled={isBlocked || submitting || !title.trim() || !price || !category || !description.trim() || photos.length === 0}>
-            {submitting ? (
-              <>
-                <span style={{ width: 18, height: 18, border: "2px solid rgba(255,255,255,0.3)", borderTop: "2px solid white", borderRadius: "50%", animation: "spin 0.8s linear infinite", display: "inline-block" }} />
-                Posting...
-              </>
-            ) : (
-              <><Send size={18} /> List Item</>
-            )}
-          </button>
         </div>
 
         {/* ── Right column: camera + previews ── */}
@@ -273,6 +261,21 @@ function PostItem() {
               Maximum of {MAX_PHOTOS} photos reached. Remove one to add another.
             </p>
           )}
+        </div>
+
+        {/* Submit button — renders last on mobile via CSS order:3 */}
+        <div className="submit-btn-wrapper">
+          <button type="submit" className="submit-btn"
+            disabled={isBlocked || submitting || !title.trim() || !price || !category || !description.trim() || photos.length === 0}>
+            {submitting ? (
+              <>
+                <span style={{ width: 18, height: 18, border: "2px solid rgba(255,255,255,0.3)", borderTop: "2px solid white", borderRadius: "50%", animation: "spin 0.8s linear infinite", display: "inline-block" }} />
+                Posting...
+              </>
+            ) : (
+              <><Send size={18} /> List Item</>
+            )}
+          </button>
         </div>
       </form>
 

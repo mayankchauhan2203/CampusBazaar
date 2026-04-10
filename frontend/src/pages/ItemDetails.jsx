@@ -586,14 +586,39 @@ function ItemDetails() {
                 This is your listing
               </button>
             ) : item.status === "available" ? (
-              <button
-                className="btn btn-primary item-details-btn"
-                onClick={handleReserveClick}
-                disabled={isBlocked || hasReported}
-              >
-                <ShoppingCart size={20} />
-                {hasReported ? "Cannot reserve (Reported)" : "Reserve Now"}
-              </button>
+              <>
+                {/* Reservation fee note */}
+                {item.sellerId !== currentUser?.uid && (
+                  <div style={{
+                    display: "flex", alignItems: "flex-start", gap: "8px",
+                    padding: "10px 14px",
+                    background: "rgba(244,163,0,0.06)",
+                    border: "1px solid rgba(244,163,0,0.2)",
+                    borderRadius: "var(--radius-md)",
+                    marginBottom: "var(--space-sm)",
+                    fontSize: "13px",
+                    color: "var(--text-secondary)",
+                    lineHeight: 1.5,
+                  }}>
+                    <span style={{ color: "var(--accent-primary)", fontWeight: 700, flexShrink: 0 }}>ℹ</span>
+                    <span>
+                      A non-refundable reservation fee of{" "}
+                      <strong style={{ color: "var(--accent-primary)" }}>
+                        ₹{item.price > 1000 ? 30 : Math.round(item.price * 0.03)}
+                      </strong>
+                      {" "}(3% of price, max ₹30) is charged to lock this item.
+                    </span>
+                  </div>
+                )}
+                <button
+                  className="btn btn-primary item-details-btn"
+                  onClick={handleReserveClick}
+                  disabled={isBlocked || hasReported}
+                >
+                  <ShoppingCart size={20} />
+                  {hasReported ? "Cannot reserve (Reported)" : "Reserve Now"}
+                </button>
+              </>
             ) : item.reservedBy === currentUser?.uid ? (
               <button 
                 className="buy-btn buy-btn-reserved item-details-btn" 
