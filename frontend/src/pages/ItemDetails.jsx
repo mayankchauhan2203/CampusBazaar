@@ -575,6 +575,11 @@ function ItemDetails() {
                     {item.sellerEmail}
                   </p>
                 )}
+                {item.sellerPhone && (
+                  <p style={{ margin: "1px 0 0", fontSize: "12px", color: "var(--text-muted)" }}>
+                    {item.sellerPhone}
+                  </p>
+                )}
               </div>
             </div>
           )}
