@@ -14,7 +14,7 @@ function HelpCenter() {
     },
     {
       q: "How does the 3% reservation fee work?",
-      a: "When you reserve an item, a platform fee of 3% of the item price is charged — capped at a maximum of ₹30 for expensive items. This fee is processed securely through Razorpay. It is non-refundable and covers the cost of running PeerMart."
+      a: "When you reserve an item, a platform fee of 3% of the item price is charged — capped at a maximum of ₹30 for expensive items. This fee is processed securely through Razorpay and covers the cost of running PeerMart. This fee is refundable only under the conditions mentioned in 'Terms of Service'."
     },
     {
       q: "How do I use My Reservations?",

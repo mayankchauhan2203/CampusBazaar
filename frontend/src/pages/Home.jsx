@@ -137,9 +137,9 @@ function Home() {
             <div className="feature-icon">
               <Heart size={24} />
             </div>
-            <h3>Zero Commission Fee</h3>
+            <h3>No Hidden Charges</h3>
             <p>
-              Keep absolutely everything you earn with zero commission rates. Built by students, for students.
+              A minimal service fee is charged to support platform operations, ensure safety and maintain a secure, hassle-free marketplace. Built by students, for students.
             </p>
           </div>
         </div>

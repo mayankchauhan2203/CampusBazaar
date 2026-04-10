@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { doc, updateDoc } from "firebase/firestore";
 import { db } from "../firebase";
@@ -8,6 +8,7 @@ import { FileText, Shield, Users, ChevronRight, AlertTriangle } from "lucide-rea
 function TermsGate() {
   const { currentUser, userData, loading } = useAuth();
   const navigate = useNavigate();
+  const [checked, setChecked] = useState(false);
 
   // If user has already accepted, redirect them away
   useEffect(() => {
@@ -115,14 +116,48 @@ function TermsGate() {
         ))}
       </div>
 
-      {/* Accept button */}
-      <button onClick={handleAccept} className="btn btn-primary" style={{ fontSize: "16px", padding: "14px 48px", display: "flex", alignItems: "center", gap: "10px" }}>
-        <Shield size={18} /> Accept &amp; Continue to PeerMart
-        <ChevronRight size={16} />
-      </button>
-      <p style={{ marginTop: "var(--space-md)", fontSize: "12px", color: "var(--text-muted)" }}>
-        By clicking Accept, you agree to abide by all terms above.
-      </p>
+      {/* Checkbox + Accept */}
+      <div style={{ maxWidth: "700px", width: "100%", display: "flex", flexDirection: "column", alignItems: "center", gap: "var(--space-md)" }}>
+        <label style={{
+          display: "flex",
+          alignItems: "flex-start",
+          gap: "12px",
+          cursor: "pointer",
+          padding: "var(--space-md) var(--space-lg)",
+          background: checked ? "rgba(74,222,128,0.05)" : "var(--bg-card)",
+          border: `1px solid ${checked ? "rgba(74,222,128,0.3)" : "var(--border-subtle)"}`,
+          borderRadius: "var(--radius-md)",
+          width: "100%",
+          boxSizing: "border-box",
+          transition: "all 0.2s",
+        }}>
+          <input
+            type="checkbox"
+            checked={checked}
+            onChange={e => setChecked(e.target.checked)}
+            style={{ marginTop: "2px", accentColor: "var(--accent-primary)", width: "16px", height: "16px", flexShrink: 0, cursor: "pointer" }}
+          />
+          <span style={{ fontSize: "14px", color: "var(--text-secondary)", lineHeight: 1.5 }}>
+            I have read and agree to the{" "}
+            <a href="/terms" target="_blank" rel="noreferrer" style={{ color: "var(--accent-primary)", textDecoration: "underline" }}>Terms of Service</a>,{" "}
+            <a href="/safety" target="_blank" rel="noreferrer" style={{ color: "var(--accent-primary)", textDecoration: "underline" }}>Safety Tips</a>, and{" "}
+            <a href="/privacy" target="_blank" rel="noreferrer" style={{ color: "var(--accent-primary)", textDecoration: "underline" }}>Privacy Policy</a>.
+          </span>
+        </label>
+
+        <button
+          onClick={handleAccept}
+          disabled={!checked}
+          className="btn btn-primary"
+          style={{ fontSize: "16px", padding: "14px 48px", display: "flex", alignItems: "center", gap: "10px", opacity: checked ? 1 : 0.45, cursor: checked ? "pointer" : "not-allowed", transition: "opacity 0.2s" }}
+        >
+          <Shield size={18} /> Accept &amp; Continue to PeerMart
+          <ChevronRight size={16} />
+        </button>
+        <p style={{ margin: 0, fontSize: "12px", color: "var(--text-muted)" }}>
+          By clicking Accept, you agree to abide by all terms above.
+        </p>
+      </div>
     </div>
   );
 }
