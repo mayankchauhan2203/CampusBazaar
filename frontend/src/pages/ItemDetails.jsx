@@ -6,6 +6,20 @@ import { useAuth } from "../context/AuthContext";
 import { Package, ShoppingCart, CheckCircle, User, ArrowLeft, AlertTriangle, Trash2, XCircle } from "lucide-react";
 import toast from "react-hot-toast";
 
+function loadRazorpay() {
+  return new Promise((resolve) => {
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.onload = () => {
+      resolve(true);
+    };
+    script.onerror = () => {
+      resolve(false);
+    };
+    document.body.appendChild(script);
+  });
+}
+
 function ItemDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -16,6 +30,7 @@ function ItemDetails() {
   const [showReserveModal, setShowReserveModal] = useState(false);
   const [reservePhone, setReservePhone] = useState("");
   const [confirmText, setConfirmText] = useState("");
+  const [razorpayLoading, setRazorpayLoading] = useState(false);
 
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportMessage, setReportMessage] = useState("");
@@ -112,56 +127,133 @@ function ItemDetails() {
         return;
       }
 
-      if (reservePhone !== userData?.phone) {
-        const userRef = doc(db, "users", currentUser.uid);
-        await updateDoc(userRef, { phone: reservePhone });
+      const executeReservation = async () => {
+        if (reservePhone !== userData?.phone) {
+          const userRef = doc(db, "users", currentUser.uid);
+          await updateDoc(userRef, { phone: reservePhone });
+        }
+
+        const itemRef = doc(db, "items", item.id);
+        await updateDoc(itemRef, {
+          status: "reserved",
+          reservedBy: currentUser.uid,
+          reservedByName: currentUser.displayName || "Student User",
+          reservedByEmail: currentUser.email,
+          reservedByPhone: reservePhone,
+          reservedAt: serverTimestamp(),
+        });
+
+        // Seller Notification
+        await addDoc(collection(db, "notifications"), {
+          recipientId: item.sellerId,
+          type: "reservation",
+          itemId: item.id,
+          itemTitle: item.title,
+          itemPrice: item.price,
+          buyerName: currentUser.displayName || "Student User",
+          read: false,
+          createdAt: serverTimestamp(),
+        });
+
+        // Buyer Notification
+        await addDoc(collection(db, "notifications"), {
+          recipientId: currentUser.uid,
+          type: "reservation_buyer_confirm",
+          itemId: item.id,
+          itemTitle: item.title,
+          sellerId: item.sellerId,
+          read: false,
+          createdAt: serverTimestamp(),
+        });
+
+        setItem(prev => ({
+          ...prev,
+          status: "reserved",
+          reservedBy: currentUser.uid,
+          reservedByName: currentUser.displayName || "Student User",
+          reservedByEmail: currentUser.email,
+          reservedByPhone: reservePhone
+        }));
+
+        toast.success("Item reserved successfully!");
+        setShowReserveModal(false);
+      };
+
+      const requiresPayment = item.price > 0;
+
+      if (requiresPayment) {
+        setRazorpayLoading(true);
+        const res = await loadRazorpay();
+        if (!res) {
+          toast.error("Razorpay SDK failed to load. Are you online?");
+          setRazorpayLoading(false);
+          return;
+        }
+
+        const orderData = await fetch(`${process.env.REACT_APP_API_URL || "http://localhost:5000"}/api/razorpay/order`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ amount: item.price })
+        }).then(t => t.json());
+
+        if (orderData.error) {
+          toast.error("Could not create payment order");
+          setRazorpayLoading(false);
+          return;
+        }
+
+        const options = {
+          key: process.env.REACT_APP_RAZORPAY_KEY_ID, 
+          amount: orderData.amount,
+          currency: orderData.currency,
+          name: "PeerMart",
+          description: "Reservation Fee for " + item.title,
+          order_id: orderData.id,
+          handler: async function (response) {
+            try {
+              const verifyRes = await fetch(`${process.env.REACT_APP_API_URL || "http://localhost:5000"}/api/razorpay/verify`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  razorpay_order_id: response.razorpay_order_id,
+                  razorpay_payment_id: response.razorpay_payment_id,
+                  razorpay_signature: response.razorpay_signature,
+                })
+              }).then(t => t.json());
+
+              if (verifyRes.verified) {
+                await executeReservation();
+              } else {
+                toast.error("Payment verification failed! Contact support.");
+              }
+            } catch (err) {
+              console.error(err);
+              toast.error("Error during payment verification");
+            } finally {
+              setRazorpayLoading(false);
+            }
+          },
+          prefill: {
+            name: currentUser.displayName || "",
+            email: currentUser.email || "",
+            contact: reservePhone || ""
+          },
+          theme: {
+            color: "#f4a300"
+          }
+        };
+
+        const paymentObject = new window.Razorpay(options);
+        paymentObject.on("payment.failed", function (response) {
+          toast.error(response.error.description || "Payment failed");
+          setRazorpayLoading(false);
+        });
+        paymentObject.open();
+
+      } else {
+        await executeReservation();
       }
 
-      const itemRef = doc(db, "items", item.id);
-      await updateDoc(itemRef, {
-        status: "reserved",
-        reservedBy: currentUser.uid,
-        reservedByName: currentUser.displayName || "Student User",
-        reservedByEmail: currentUser.email,
-        reservedByPhone: reservePhone,
-        reservedAt: serverTimestamp(),
-      });
-
-      // Seller Notification
-      await addDoc(collection(db, "notifications"), {
-        recipientId: item.sellerId,
-        type: "reservation",
-        itemId: item.id,
-        itemTitle: item.title,
-        itemPrice: item.price,
-        buyerName: currentUser.displayName || "Student User",
-        read: false,
-        createdAt: serverTimestamp(),
-      });
-
-      // Buyer Notification
-      await addDoc(collection(db, "notifications"), {
-        recipientId: currentUser.uid,
-        type: "reservation_buyer_confirm",
-        itemId: item.id,
-        itemTitle: item.title,
-        sellerId: item.sellerId,
-        read: false,
-        createdAt: serverTimestamp(),
-      });
-
-      // Update the local state so the UI rerenders immediately without a refresh
-      setItem(prev => ({
-        ...prev,
-        status: "reserved",
-        reservedBy: currentUser.uid,
-        reservedByName: currentUser.displayName || "Student User",
-        reservedByEmail: currentUser.email,
-        reservedByPhone: reservePhone
-      }));
-
-      toast.success("Item reserved successfully!");
-      setShowReserveModal(false);
     } catch (error) {
       console.error(error);
       toast.error("Failed to reserve. Try again.");
@@ -433,11 +525,11 @@ function ItemDetails() {
                 />
               </div>
               <div className="edit-actions">
-                <button type="button" className="btn-cancel" onClick={() => setShowReserveModal(false)}>
+                <button type="button" className="btn-cancel" onClick={() => setShowReserveModal(false)} disabled={razorpayLoading}>
                   Cancel
                 </button>
-                <button type="submit" className="btn-save">
-                  Confirm
+                <button type="submit" className="btn-save" disabled={razorpayLoading}>
+                  {razorpayLoading ? "Processing..." : "Pay & Confirm"}
                 </button>
               </div>
             </form>

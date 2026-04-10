@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
-  User, Shield, ChevronRight, Package, Star, ShoppingBag,
+  User, Shield, ChevronRight, Package, Star, ShoppingBag, CheckCircle,
   LogOut, Edit3, Save, X, Phone, AlignLeft, Trash2, Eye, EyeOff,
   ShieldCheck
 } from "lucide-react";
@@ -19,13 +19,6 @@ function Profile() {
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [showPasswordForm, setShowPasswordForm] = useState(false);
-  const [newPassword, setNewPassword] = useState("");
-  const [oldPassword, setOldPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [showNewPassword, setShowNewPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [showOldPassword, setShowOldPassword] = useState(false);
 
   // Form State
   const [name, setName] = useState("");
@@ -117,36 +110,7 @@ function Profile() {
     }
   }
 
-  async function submitPasswordChange() {
-    if (!oldPassword) {
-      toast.error("Please enter your current password.");
-      return;
-    }
-    if (newPassword.length < 6) {
-      toast.error("Password must be at least 6 characters.");
-      return;
-    }
-    if (newPassword !== confirmPassword) {
-      toast.error("Passwords do not match.");
-      return;
-    }
-    if (!window.confirm("Are you sure you want to change your password?")) {
-      return;
-    }
-    
-    setSaving(true);
-    const result = await changeUserPassword(oldPassword, newPassword);
-    setSaving(false);
 
-    if (result.success) {
-      setOldPassword("");
-      setNewPassword("");
-      setConfirmPassword("");
-      setShowPasswordForm(false);
-    } else if (result.forceLogout) {
-      navigate("/login");
-    }
-  }
 
   async function handleSaveProfile() {
     setSaving(true);
@@ -334,6 +298,16 @@ function Profile() {
             </div>
             <ChevronRight size={18} className="setting-arrow" />
           </Link>
+          <Link to="/my-reservations" className="setting-item">
+            <div className="setting-info">
+              <div className="setting-icon"><CheckCircle size={18} /></div>
+              <div className="setting-text">
+                <h4>My Reservations</h4>
+                <p>Track items you've locked in</p>
+              </div>
+            </div>
+            <ChevronRight size={18} className="setting-arrow" />
+          </Link>
         </div>
 
 
@@ -362,94 +336,7 @@ function Profile() {
           </div>
           */}
 
-          <div className="setting-item" style={{ flexDirection: 'column', alignItems: 'flex-start', padding: showPasswordForm ? 'var(--space-md)' : '16px' }}>
-            <div
-              className="setting-info"
-              style={{ width: '100%', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
-              onClick={() => setShowPasswordForm(!showPasswordForm)}
-            >
-              <div className="setting-icon"><Shield size={18} /></div>
-              <div className="setting-text" style={{ flexGrow: 1 }}>
-                <h4>Security</h4>
-                <p>Change Password</p>
-              </div>
-              <ChevronRight size={18} className="setting-arrow" style={{ transform: showPasswordForm ? 'rotate(90deg)' : 'none', transition: 'transform 0.2s' }} />
-            </div>
 
-            {showPasswordForm && (
-              <div className="password-change-form" style={{ width: '100%', marginTop: 'var(--space-md)', paddingTop: 'var(--space-md)', borderTop: '1px solid var(--border-subtle)' }}>
-                <div className="form-group edit-form-group" style={{ marginBottom: 'var(--space-md)', position: 'relative' }}>
-                  <label>Current Password</label>
-                  <input
-                    type={showOldPassword ? "text" : "password"}
-                    value={oldPassword}
-                    onChange={e => setOldPassword(e.target.value)}
-                    placeholder="Enter current password"
-                    style={{ width: '100%', padding: '10px 14px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)', background: 'var(--bg-card)', color: 'white', marginTop: 'var(--space-xs)', paddingRight: '40px' }}
-                  />
-                  <button 
-                    type="button" 
-                    onClick={() => setShowOldPassword(!showOldPassword)}
-                    style={{ position: 'absolute', right: '10px', top: '36px', background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}
-                  >
-                    {showOldPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                  </button>
-                  <button 
-                    type="button" 
-                    onClick={() => resetPassword(currentUser.email)}
-                    style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', fontSize: '12px', marginTop: '8px', padding: 0, textAlign: 'left' }}
-                  >
-                    Forgot current password? Send reset email
-                  </button>
-                </div>
-
-                <div className="form-group edit-form-group" style={{ marginBottom: 'var(--space-md)', position: 'relative' }}>
-                  <label>New Password</label>
-                  <input
-                    type={showNewPassword ? "text" : "password"}
-                    value={newPassword}
-                    onChange={e => setNewPassword(e.target.value)}
-                    placeholder="Enter new password (min. 6 characters)"
-                    style={{ width: '100%', padding: '10px 14px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)', background: 'var(--bg-card)', color: 'white', marginTop: 'var(--space-xs)', paddingRight: '40px' }}
-                  />
-                  <button 
-                    type="button" 
-                    onClick={() => setShowNewPassword(!showNewPassword)}
-                    style={{ position: 'absolute', right: '10px', top: '36px', background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}
-                  >
-                    {showNewPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                  </button>
-                </div>
-                
-                <div className="form-group edit-form-group" style={{ marginBottom: 'var(--space-md)', position: 'relative' }}>
-                  <label>Confirm Password</label>
-                  <input
-                    type={showConfirmPassword ? "text" : "password"}
-                    value={confirmPassword}
-                    onChange={e => setConfirmPassword(e.target.value)}
-                    placeholder="Re-enter new password"
-                    style={{ width: '100%', padding: '10px 14px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)', background: 'var(--bg-card)', color: 'white', marginTop: 'var(--space-xs)', paddingRight: '40px' }}
-                  />
-                  <button 
-                    type="button" 
-                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    style={{ position: 'absolute', right: '10px', top: '36px', background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}
-                  >
-                    {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                  </button>
-                </div>
-
-                <div className="edit-actions" style={{ justifyContent: 'flex-start', gap: 'var(--space-md)' }}>
-                  <button className="btn-cancel" onClick={() => setShowPasswordForm(false)} disabled={saving} style={{ padding: '8px 16px', fontSize: '13px' }}>
-                    Cancel
-                  </button>
-                  <button className="btn-save" onClick={submitPasswordChange} disabled={saving} style={{ padding: '8px 16px', fontSize: '13px' }}>
-                    {saving ? "Saving..." : "Update Password"}
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
 
           <div
             className="setting-item"

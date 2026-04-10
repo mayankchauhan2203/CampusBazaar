@@ -212,11 +212,11 @@ function Notifications() {
                       </>
                     ) : notif.type === "seller_cancelled_reservation" ? (
                       <>
-                        <strong style={{ color: "var(--danger)" }}>Reservation Cancelled.</strong> The seller (<strong style={{ color: "var(--accent-primary)" }}>{notif.sellerName}</strong>) has cancelled your reservation for <strong style={{ color: "var(--text-primary)" }}>"{notif.itemTitle}"</strong>.
+                        <strong style={{ color: "var(--danger)" }}>Reservation Cancelled.</strong> The seller has cancelled your reservation for <strong style={{ color: "var(--text-primary)" }}>"{notif.itemTitle}"</strong>.
                       </>
                     ) : notif.type === "reservation_buyer_confirm" ? (
                       <>
-                        You successfully reserved <strong style={{ color: "var(--accent-primary)" }}>"{notif.itemTitle}"</strong>! Your contact info has been natively shared with the seller.
+                        You successfully paid and reserved <strong style={{ color: "var(--accent-primary)" }}>"{notif.itemTitle}"</strong>! Check your <strong style={{ color: "var(--accent-primary)" }}>My Reservations</strong> tab to get the seller's details.
                       </>
                     ) : notif.type === "reservation" ? (
                       <>
