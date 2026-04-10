@@ -1,9 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { doc, getDoc, updateDoc, addDoc, collection, serverTimestamp, query, where, getDocs, deleteField, deleteDoc } from "firebase/firestore";
 import { db } from "../firebase";
 import { useAuth } from "../context/AuthContext";
-import { Package, ShoppingCart, CheckCircle, User, ArrowLeft, AlertTriangle, Trash2, XCircle } from "lucide-react";
+import { Package, ShoppingCart, CheckCircle, User, ArrowLeft, AlertTriangle, Trash2, XCircle, ChevronLeft, ChevronRight, X, ZoomIn } from "lucide-react";
 import toast from "react-hot-toast";
 
 function loadRazorpay() {
@@ -36,6 +36,11 @@ function ItemDetails() {
   const [reportMessage, setReportMessage] = useState("");
   const [reportSubmitting, setReportSubmitting] = useState(false);
   const [hasReported, setHasReported] = useState(false);
+
+  // ── Carousel state ──────────────────────────────────────────────────────
+  const [activeImg, setActiveImg] = useState(0);
+  const [lightbox, setLightbox] = useState(false);
+  const touchStartX = useRef(null);
 
   useEffect(() => {
     async function fetchItem() {
@@ -404,16 +409,123 @@ function ItemDetails() {
 
       <div className="item-details-grid">
         
-        {/* Image */}
-        <div className="item-details-image-wrap">
-          {item.image ? (
-            <img src={item.image} alt={item.title} className="item-details-img" />
-          ) : (
-            <Package size={64} color="var(--text-muted)" />
-          )}
-          <span className={`product-card-badge ${item.status === "available" ? "badge-available" : "badge-reserved"}`}>
-            {item.status === "available" ? "Available" : "Reserved"}
-          </span>
+        {/* ── Image Carousel ── */}
+        <div className="item-details-image-wrap" style={{ position: "relative", overflow: "hidden" }}>
+          {(() => {
+            const imgs = item.images?.length ? item.images : (item.image ? [item.image] : []);
+            if (imgs.length === 0) return <Package size={64} color="var(--text-muted)" />;
+
+            const prev = () => setActiveImg(i => (i - 1 + imgs.length) % imgs.length);
+            const next = () => setActiveImg(i => (i + 1) % imgs.length);
+
+            return (
+              <>
+                {/* Main image */}
+                <div
+                  style={{ position: "relative", width: "100%", cursor: "zoom-in" }}
+                  onClick={() => setLightbox(true)}
+                  onTouchStart={e => { touchStartX.current = e.touches[0].clientX; }}
+                  onTouchEnd={e => {
+                    if (touchStartX.current === null) return;
+                    const diff = touchStartX.current - e.changedTouches[0].clientX;
+                    if (Math.abs(diff) > 40) diff > 0 ? next() : prev();
+                    touchStartX.current = null;
+                  }}
+                >
+                  <img
+                    src={imgs[activeImg]}
+                    alt={`${item.title} — photo ${activeImg + 1}`}
+                    className="item-details-img"
+                    style={{ userSelect: "none", transition: "opacity 0.18s" }}
+                  />
+                  {/* Zoom hint */}
+                  <div style={{ position: "absolute", bottom: 12, right: 12, background: "rgba(0,0,0,0.55)", borderRadius: "50%", padding: 7, display: "flex", pointerEvents: "none" }}>
+                    <ZoomIn size={16} color="white" />
+                  </div>
+                </div>
+
+                {/* Arrows — only if multiple images */}
+                {imgs.length > 1 && (
+                  <>
+                    <button onClick={prev} aria-label="Previous" style={{
+                      position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)",
+                      background: "rgba(0,0,0,0.55)", border: "none", borderRadius: "50%",
+                      width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center",
+                      cursor: "pointer", zIndex: 2, color: "white"
+                    }}><ChevronLeft size={20} /></button>
+                    <button onClick={next} aria-label="Next" style={{
+                      position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)",
+                      background: "rgba(0,0,0,0.55)", border: "none", borderRadius: "50%",
+                      width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center",
+                      cursor: "pointer", zIndex: 2, color: "white"
+                    }}><ChevronRight size={20} /></button>
+
+                    {/* Dot indicators */}
+                    <div style={{ position: "absolute", bottom: 12, left: "50%", transform: "translateX(-50%)", display: "flex", gap: 6 }}>
+                      {imgs.map((_, i) => (
+                        <button key={i} onClick={() => setActiveImg(i)} aria-label={`Go to photo ${i + 1}`} style={{
+                          width: i === activeImg ? 18 : 8, height: 8,
+                          borderRadius: 4, border: "none", padding: 0, cursor: "pointer",
+                          background: i === activeImg ? "var(--accent-primary)" : "rgba(255,255,255,0.45)",
+                          transition: "all 0.2s"
+                        }} />
+                      ))}
+                    </div>
+                  </>
+                )}
+
+                {/* Status badge */}
+                <span className={`product-card-badge ${item.status === "available" ? "badge-available" : "badge-reserved"}`}>
+                  {item.status === "available" ? "Available" : "Reserved"}
+                </span>
+
+                {/* Lightbox */}
+                {lightbox && (
+                  <div
+                    onClick={() => setLightbox(false)}
+                    style={{
+                      position: "fixed", inset: 0, background: "rgba(0,0,0,0.92)",
+                      zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center"
+                    }}
+                  >
+                    <button onClick={e => { e.stopPropagation(); setLightbox(false); }} aria-label="Close" style={{
+                      position: "absolute", top: 20, right: 20, background: "rgba(255,255,255,0.1)",
+                      border: "none", borderRadius: "50%", width: 40, height: 40,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      cursor: "pointer", color: "white"
+                    }}><X size={20} /></button>
+
+                    <img
+                      src={imgs[activeImg]}
+                      alt={`${item.title} — full size`}
+                      style={{ maxWidth: "90vw", maxHeight: "90vh", objectFit: "contain", borderRadius: 8 }}
+                      onClick={e => e.stopPropagation()}
+                    />
+
+                    {imgs.length > 1 && (
+                      <>
+                        <button onClick={e => { e.stopPropagation(); prev(); }} aria-label="Previous" style={{
+                          position: "absolute", left: 16, top: "50%", transform: "translateY(-50%)",
+                          background: "rgba(255,255,255,0.1)", border: "none", borderRadius: "50%",
+                          width: 44, height: 44, display: "flex", alignItems: "center", justifyContent: "center",
+                          cursor: "pointer", color: "white"
+                        }}><ChevronLeft size={24} /></button>
+                        <button onClick={e => { e.stopPropagation(); next(); }} aria-label="Next" style={{
+                          position: "absolute", right: 16, top: "50%", transform: "translateY(-50%)",
+                          background: "rgba(255,255,255,0.1)", border: "none", borderRadius: "50%",
+                          width: 44, height: 44, display: "flex", alignItems: "center", justifyContent: "center",
+                          cursor: "pointer", color: "white"
+                        }}><ChevronRight size={24} /></button>
+                        <div style={{ position: "absolute", bottom: 24, left: "50%", transform: "translateX(-50%)", color: "rgba(255,255,255,0.6)", fontSize: 13 }}>
+                          {activeImg + 1} / {imgs.length}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
+              </>
+            );
+          })()}
         </div>
 
         {/* Details */}
