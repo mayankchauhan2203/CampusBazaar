@@ -115,10 +115,13 @@ function IITDCallback() {
       );
 
       // ── Clean up sessionStorage ───────────────────────────────────────────
-      const isNewUser = !existing.exists();
-      const redirectTo = isNewUser
-        ? "/terms-gate"
-        : (sessionStorage.getItem("oauth_redirect_after") || "/marketplace");
+      // Redirect to terms gate if the user has not yet accepted terms.
+      // This covers: brand new accounts, existing accounts that pre-date the
+      // terms gate, or any account where termsAccepted is missing/false.
+      const hasAcceptedTerms = existing.exists() && existing.data()?.termsAccepted === true;
+      const redirectTo = hasAcceptedTerms
+        ? (sessionStorage.getItem("oauth_redirect_after") || "/marketplace")
+        : "/terms-gate";
       sessionStorage.removeItem("oauth_state");
       sessionStorage.removeItem("oauth_redirect_after");
 
