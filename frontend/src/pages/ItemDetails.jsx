@@ -137,8 +137,8 @@ function ItemDetails() {
         await updateDoc(itemRef, {
           status: "reserved",
           reservedBy: currentUser.uid,
-          reservedByName: currentUser.displayName || "Student User",
-          reservedByEmail: currentUser.email,
+          reservedByName: userData?.name || currentUser.displayName || "Student User",
+          reservedByEmail: userData?.email || currentUser.email || "N/A",
           reservedByPhone: reservePhone,
           reservedAt: serverTimestamp(),
         });

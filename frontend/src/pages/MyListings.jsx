@@ -1,8 +1,8 @@
-import { collection, getDocs, doc, deleteDoc, query, where, updateDoc, addDoc, serverTimestamp, deleteField } from "firebase/firestore";
+import { collection, getDocs, getDoc, doc, deleteDoc, query, where, updateDoc, addDoc, serverTimestamp, deleteField } from "firebase/firestore";
 import { db } from "../firebase";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Package, PlusCircle, Trash2, Tag } from "lucide-react";
+import { Package, PlusCircle, Trash2, Tag, X, User, Mail, Phone, ShieldAlert } from "lucide-react";
 import toast from "react-hot-toast";
 import { useAuth } from "../context/AuthContext";
 
@@ -60,13 +60,32 @@ function MyListings() {
     }
   }
 
-  function openBuyerDetails(item) {
-    setSelectedBuyer({
-      name: item.reservedByName || "Unknown",
-      email: item.reservedByEmail || "N/A",
-      phone: item.reservedByPhone || "N/A",
-    });
-    setShowBuyerModal(true);
+  async function openBuyerDetails(item) {
+    if (!item.reservedBy) {
+      toast.error("Could not find buyer info.");
+      return;
+    }
+    try {
+      const userRef = doc(db, "users", item.reservedBy);
+      const userSnap = await getDoc(userRef);
+      if (userSnap.exists()) {
+        const data = userSnap.data();
+        setSelectedBuyer({
+          name: data.name || item.reservedByName || "Unknown",
+          email: data.email || item.reservedByEmail || "Private",
+          phone: data.phone || item.reservedByPhone || "Not provided"
+        });
+      } else {
+        setSelectedBuyer({
+          name: item.reservedByName || "Unknown",
+          email: item.reservedByEmail || "Private",
+          phone: item.reservedByPhone || "Not provided",
+        });
+      }
+      setShowBuyerModal(true);
+    } catch (e) {
+      toast.error("Failed to load buyer details.");
+    }
   }
 
   async function handleMarkComplete(item) {
@@ -103,47 +122,7 @@ function MyListings() {
     }
   }
 
-  async function handleCancelReservation(item) {
-    if (!window.confirm("Cancel this reservation? The item will become available for others to buy again.")) return;
-    try {
-      const itemRef = doc(db, "items", item.id);
-      await updateDoc(itemRef, {
-        status: "available",
-        reservedBy: deleteField(),
-        reservedByName: deleteField(),
-        reservedByEmail: deleteField(),
-        reservedByPhone: deleteField(),
-        reservedAt: deleteField()
-      });
 
-      // Notify the buyer
-      if (item.reservedBy) {
-        await addDoc(collection(db, "notifications"), {
-          recipientId: item.reservedBy,
-          type: "seller_cancelled_reservation",
-          itemId: item.id,
-          itemTitle: item.title,
-          sellerName: currentUser.displayName || "The seller",
-          read: false,
-          createdAt: serverTimestamp(),
-        });
-      }
-
-      setItems(prev => prev.map(i => i.id === item.id ? { 
-        ...i, 
-        status: "available",
-        reservedBy: null,
-        reservedByName: null,
-        reservedByEmail: null,
-        reservedByPhone: null,
-        reservedAt: null
-      } : i));
-      toast.success("Reservation cancelled successfully.");
-    } catch (error) {
-      console.error(error);
-      toast.error("Failed to cancel reservation");
-    }
-  }
 
   return (
     <div className="marketplace" style={{ maxWidth: '800px', margin: '0 auto' }}>
@@ -240,12 +219,7 @@ function MyListings() {
                     >
                       Mark Complete
                     </button>
-                    <button 
-                      onClick={() => handleCancelReservation(item)}
-                      style={{ padding: '8px 12px', background: 'rgba(248, 113, 113, 0.1)', color: 'var(--danger)', border: '1px solid rgba(248, 113, 113, 0.2)', borderRadius: 'var(--radius-md)', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 500 }}
-                    >
-                      Cancel Order
-                    </button>
+
                   </>
                 ) : (
                   <button 
@@ -275,22 +249,56 @@ function MyListings() {
       {/* Buyer Details Modal */}
       {showBuyerModal && selectedBuyer && (
         <div className="reserve-modal-overlay">
-          <div className="reserve-modal" style={{ textAlign: "left", padding: "24px" }}>
-            <h2 className="reserve-modal-title" style={{ marginBottom: "16px" }}>Buyer Details</h2>
-            <div style={{ marginBottom: "20px" }}>
-              <p style={{ margin: "8px 0" }}><strong style={{ color: "var(--text-muted)" }}>Name:</strong> <span style={{ color: "var(--text-primary)" }}>{selectedBuyer.name}</span></p>
-              <p style={{ margin: "8px 0" }}><strong style={{ color: "var(--text-muted)" }}>Email:</strong> <span style={{ color: "var(--text-primary)" }}>{selectedBuyer.email}</span></p>
-              <p style={{ margin: "8px 0" }}><strong style={{ color: "var(--text-muted)" }}>Phone:</strong> <span style={{ color: "var(--text-primary)" }}>{selectedBuyer.phone}</span></p>
-            </div>
-            <div className="edit-actions" style={{ justifyContent: "flex-end" }}>
+          <div className="reserve-modal" style={{ maxWidth: '400px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-lg)', borderBottom: '1px solid var(--border-subtle)', paddingBottom: 'var(--space-md)' }}>
+              <h2 className="reserve-modal-title" style={{ margin: 0, fontSize: '1.25rem' }}>Buyer Details</h2>
               <button 
-                className="btn-cancel" 
                 onClick={() => setShowBuyerModal(false)}
-                style={{ padding: "8px 16px", fontSize: "0.9rem" }}
+                style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }}
               >
-                Close
+                <X size={20} />
               </button>
             </div>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)', marginBottom: 'var(--space-xl)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{ background: 'var(--bg-darker)', padding: '10px', borderRadius: '50%', color: 'var(--text-secondary)' }}>
+                  <User size={20} />
+                </div>
+                <div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Name</div>
+                  <div style={{ fontSize: '16px', color: 'var(--text-primary)', fontWeight: '500' }}>{selectedBuyer.name || "Unknown"}</div>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{ background: 'var(--bg-darker)', padding: '10px', borderRadius: '50%', color: 'var(--text-secondary)' }}>
+                  <Mail size={20} />
+                </div>
+                <div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Email Address</div>
+                  <div style={{ fontSize: '16px', color: 'var(--text-primary)', fontWeight: '500' }}>{selectedBuyer.email || "Private"}</div>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{ background: 'var(--bg-darker)', padding: '10px', borderRadius: '50%', color: 'var(--accent-primary)' }}>
+                  <Phone size={20} />
+                </div>
+                <div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Phone Number</div>
+                  <div style={{ fontSize: '16px', color: 'var(--text-primary)', fontWeight: '500' }}>{selectedBuyer.phone || "Not provided"}</div>
+                </div>
+              </div>
+            </div>
+
+            <div style={{ background: 'rgba(244, 163, 0, 0.05)', padding: 'var(--space-md)', borderRadius: 'var(--radius-md)', border: '1px inset var(--border-subtle)', display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+              <ShieldAlert size={18} color="var(--accent-primary)" style={{ flexShrink: 0, marginTop: '2px' }} />
+              <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
+                Coordinate a safe meeting place on campus before completing the transaction. 
+              </p>
+            </div>
+            
           </div>
         </div>
       )}
