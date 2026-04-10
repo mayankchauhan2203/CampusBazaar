@@ -47,7 +47,23 @@ function ItemDetails() {
       try {
         const itemSnap = await getDoc(doc(db, "items", id));
         if (itemSnap.exists()) {
-          setItem({ id: itemSnap.id, ...itemSnap.data() });
+          const itemData = { id: itemSnap.id, ...itemSnap.data() };
+          setItem(itemData);
+
+          // Admin: fetch seller's full profile to get phone (works for old & new listings)
+          if (isAdmin && itemData.sellerId) {
+            getDoc(doc(db, "users", itemData.sellerId)).then(sellerSnap => {
+              if (sellerSnap.exists()) {
+                const sellerData = sellerSnap.data();
+                setItem(prev => ({
+                  ...prev,
+                  sellerPhone: sellerData.phone || prev.sellerPhone || null,
+                  sellerName: prev.sellerName || sellerData.name || null,
+                  sellerEmail: prev.sellerEmail || sellerData.email || null,
+                }));
+              }
+            }).catch(e => console.error("Error fetching seller profile:", e));
+          }
 
           if (currentUser) {
             const q = query(
@@ -55,11 +71,8 @@ function ItemDetails() {
               where("itemId", "==", id),
               where("reporterId", "==", currentUser.uid)
             );
-            // We use getDocs because reports shouldn't change too often to need a real-time listener for the user just to disable the button
             getDocs(q).then(reportSnap => {
-              if (!reportSnap.empty) {
-                setHasReported(true);
-              }
+              if (!reportSnap.empty) setHasReported(true);
             }).catch(e => console.error("Error checking report status", e));
           }
         } else {
@@ -74,7 +87,7 @@ function ItemDetails() {
       }
     }
     fetchItem();
-  }, [id, navigate]);
+  }, [id, navigate, isAdmin]);
 
   function handleReserveClick() {
     if (!currentUser) {
@@ -572,12 +585,17 @@ function ItemDetails() {
                 </p>
                 {item.sellerEmail && (
                   <p style={{ margin: "1px 0 0", fontSize: "12px", color: "var(--text-muted)" }}>
-                    {item.sellerEmail}
+                    📧 <a href={`mailto:${item.sellerEmail}`} style={{ color: "var(--text-muted)" }}>{item.sellerEmail}</a>
                   </p>
                 )}
                 {item.sellerPhone && (
                   <p style={{ margin: "1px 0 0", fontSize: "12px", color: "var(--text-muted)" }}>
-                    {item.sellerPhone}
+                    📞 <a href={`tel:${item.sellerPhone}`} style={{ color: "var(--text-muted)" }}>{item.sellerPhone}</a>
+                  </p>
+                )}
+                {!item.sellerPhone && (
+                  <p style={{ margin: "1px 0 0", fontSize: "11px", color: "var(--text-muted)", fontStyle: "italic" }}>
+                    No phone on record
                   </p>
                 )}
               </div>
