@@ -6,9 +6,11 @@ function Footer() {
     <footer className="footer">
       <div className="footer-content">
         <div className="footer-brand">
-          <h3>
-            <span className="gradient-text">PeerMart</span>
-          </h3>
+          <img
+            src="/logo.png"
+            alt="PeerMart"
+            style={{ height: '32px', width: 'auto', objectFit: 'contain', marginBottom: '12px' }}
+          />
           <p>
             The trusted peer-to-peer marketplace for campus communities.
             Buy, sell, and trade with fellow students safely.
@@ -57,7 +59,7 @@ function Footer() {
           <a href="https://www.linkedin.com/in/mayank-chauhan-mc2203" aria-label="LinkedIn">
             <Linkedin size={16} />
           </a>
-          <a href="https://www.instagram.com/myself_mayankchauhan?igsh=MWNlbzBtdzJoeDZjdQ==" aria-label="Instagram">
+          <a href="https://www.instagram.com/myself_mayankchauhan" aria-label="Instagram">
             <Instagram size={16} />
           </a>
         </div>

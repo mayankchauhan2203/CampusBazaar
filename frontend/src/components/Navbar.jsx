@@ -73,10 +73,11 @@ function Navbar() {
     <>
       <nav className={`navbar ${scrolled ? "scrolled" : ""}`}>
         <Link to="/" className="navbar-brand">
-          <div className="brand-icon">
-            <ShoppingBag size={20} color="white" />
-          </div>
-          <span className="gradient-text">PeerMart</span>
+          <img
+            src="/logo.png"
+            alt="PeerMart"
+            style={{ height: '36px', width: 'auto', objectFit: 'contain' }}
+          />
         </Link>
 
         <div className="navbar-links">

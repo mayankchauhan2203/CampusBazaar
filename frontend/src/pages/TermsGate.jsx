@@ -41,11 +41,8 @@ function TermsGate() {
       padding: "var(--space-xl)",
       background: "var(--bg-primary)",
     }}>
-      {/* Brand header */}
       <div style={{ marginBottom: "var(--space-2xl)", textAlign: "center" }}>
-        <div style={{ fontSize: "28px", fontWeight: 800, letterSpacing: "-0.5px" }}>
-          <span className="gradient-text">PeerMart</span>
-        </div>
+        <img src="/logo.png" alt="PeerMart" style={{ height: '44px', width: 'auto', objectFit: 'contain', marginBottom: '10px' }} />
         <p style={{ color: "var(--text-muted)", fontSize: "14px", marginTop: "6px" }}>
           Welcome! Before you get started, please review our Terms of Service.
         </p>

@@ -24,7 +24,7 @@ function ItemDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { currentUser, userData, isBlocked, isAdmin } = useAuth();
-  
+
   const [item, setItem] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showReserveModal, setShowReserveModal] = useState(false);
@@ -48,7 +48,7 @@ function ItemDetails() {
         const itemSnap = await getDoc(doc(db, "items", id));
         if (itemSnap.exists()) {
           setItem({ id: itemSnap.id, ...itemSnap.data() });
-          
+
           if (currentUser) {
             const q = query(
               collection(db, "reports"),
@@ -208,7 +208,7 @@ function ItemDetails() {
         }
 
         const options = {
-          key: process.env.REACT_APP_RAZORPAY_KEY_ID, 
+          key: process.env.REACT_APP_RAZORPAY_KEY_ID,
           amount: orderData.amount,
           currency: orderData.currency,
           name: "PeerMart",
@@ -286,9 +286,9 @@ function ItemDetails() {
         createdAt: serverTimestamp(),
       });
 
-      setItem(prev => ({ 
-        ...prev, 
-        status: "available", 
+      setItem(prev => ({
+        ...prev,
+        status: "available",
         reservedBy: null,
         reservedByName: null,
         reservedByEmail: null
@@ -408,7 +408,7 @@ function ItemDetails() {
       </button>
 
       <div className="item-details-grid">
-        
+
         {/* ── Image Carousel ── */}
         <div className="item-details-image-wrap" style={{ position: "relative", overflow: "hidden" }}>
           {(() => {
@@ -602,11 +602,13 @@ function ItemDetails() {
                   }}>
                     <span style={{ color: "var(--accent-primary)", fontWeight: 700, flexShrink: 0 }}>ℹ</span>
                     <span>
-                      A non-refundable reservation fee of{" "}
+                      A reservation fee of{" "}
                       <strong style={{ color: "var(--accent-primary)" }}>
                         ₹{item.price > 1000 ? 30 : Math.round(item.price * 0.03)}
                       </strong>
-                      {" "}(3% of price, max ₹30) is charged to lock this item.
+                      {" "}(3% of price, max ₹30) is charged to lock this item. To know more about this, visit our{" "}
+                      <a href="/terms" target="_blank" rel="noreferrer" style={{ color: "var(--accent-primary)", textDecoration: "underline" }}>Terms of Service</a>
+                      {" "}page.
                     </span>
                   </div>
                 )}
@@ -620,8 +622,8 @@ function ItemDetails() {
                 </button>
               </>
             ) : item.reservedBy === currentUser?.uid ? (
-              <button 
-                className="buy-btn buy-btn-reserved item-details-btn" 
+              <button
+                className="buy-btn buy-btn-reserved item-details-btn"
                 onClick={handleUnreserve}
                 style={{ cursor: "pointer", opacity: 0.9, backgroundColor: "var(--danger)", color: "white", border: "none" }}
               >
@@ -634,11 +636,11 @@ function ItemDetails() {
                 Reserved
               </button>
             )}
-            
+
             {/* Report Button */}
             {currentUser?.uid !== item.sellerId && (
-              <button 
-                className="btn-cancel" 
+              <button
+                className="btn-cancel"
                 style={{ marginTop: "12px", width: "100%", display: "flex", justifyContent: "center", gap: "8px", opacity: hasReported ? 0.6 : 1, cursor: hasReported ? "not-allowed" : "pointer" }}
                 onClick={() => {
                   if (!currentUser) {
@@ -654,11 +656,11 @@ function ItemDetails() {
                 {hasReported ? "Reported" : "Report Item"}
               </button>
             )}
-            
+
             {/* Delete Button (Admins only) */}
             {isAdmin && (
-              <button 
-                className="btn-cancel" 
+              <button
+                className="btn-cancel"
                 style={{ marginTop: "12px", width: "100%", display: "flex", justifyContent: "center", gap: "8px", background: "rgba(248, 113, 113, 0.1)", border: "1px solid var(--danger)", color: "var(--danger)" }}
                 onClick={handleDeleteItem}
               >
@@ -679,22 +681,22 @@ function ItemDetails() {
             <form onSubmit={handleConfirmReserve}>
               <div className="form-group" style={{ marginBottom: '16px' }}>
                 <label>Phone Number (10 digits)</label>
-                <input 
-                  type="tel" 
-                  value={reservePhone} 
+                <input
+                  type="tel"
+                  value={reservePhone}
                   onChange={(e) => setReservePhone(e.target.value)}
                   placeholder="e.g. 9876543210"
-                  required 
+                  required
                 />
               </div>
               <div className="form-group" style={{ marginBottom: '24px' }}>
                 <label>Type <strong style={{ color: 'var(--accent-primary)' }}>reserve</strong> to confirm</label>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   value={confirmText}
                   onChange={(e) => setConfirmText(e.target.value)}
                   placeholder="reserve"
-                  required 
+                  required
                 />
               </div>
               <div className="edit-actions">
@@ -719,11 +721,11 @@ function ItemDetails() {
             <form onSubmit={handleReportSubmit}>
               <div className="form-group" style={{ marginBottom: '24px' }}>
                 <label>Reason for reporting</label>
-                <textarea 
+                <textarea
                   value={reportMessage}
                   onChange={(e) => setReportMessage(e.target.value)}
                   placeholder="e.g. Scammer, inappropriate content..."
-                  required 
+                  required
                   rows={4}
                   style={{ width: "100%", padding: "10px", borderRadius: "8px", border: "1px solid var(--border-subtle)", background: "var(--bg-secondary)", color: "var(--text-primary)", fontFamily: "var(--font-sans)", resize: "vertical" }}
                 />
