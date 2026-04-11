@@ -14,7 +14,7 @@ const sections = [
   {
     icon: <Users size={16} color="var(--accent-primary)" />,
     title: "2. User Eligibility",
-    body: `Access to PeerMart is restricted exclusively to current students of IIT Delhi. Registration is performed through the official IITD institutional OAuth login, which verifies your institutional identity. By creating an account and using this platform, you confirm that: (a) you are a currently enrolled student of IIT Delhi; (b) you are at least 18 years of age; (c) all information you provide is accurate and complete; and (d) you will use the platform in good faith and in compliance with these Terms. Former students, faculty, and non-IITD users are not permitted to use this platform.`
+    body: `Access to PeerMart is restricted exclusively to current students of IIT Delhi. Registration is performed through the official IITD institutional OAuth login, which verifies your institutional identity. By creating an account and using this platform, you confirm that: (a) you are a currently enrolled student of IIT Delhi; (b) all information you provide is accurate and complete; and (c) you will use the platform in good faith and in compliance with these Terms. Former students and non-IITD users are not permitted to use this platform.`
   },
   {
     icon: <FileText size={16} color="var(--accent-primary)" />,
