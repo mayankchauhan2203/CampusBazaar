@@ -128,7 +128,7 @@ function PostItem() {
         sellerId: currentUser.uid,
         sellerName: userData?.name || currentUser.displayName || "IITD Student",
         sellerEmail: userData?.email || currentUser.email,
-        sellerPhone: userData?.phone || currentUser.phone,
+        sellerPhone: userData?.phone || currentUser.phone || "",
         createdAt: serverTimestamp(),
       });
 
@@ -238,7 +238,6 @@ function PostItem() {
             <div
               className={`image-dropzone ${photos.length === 0 ? "" : "has-image"}`}
               style={{ cursor: "pointer", position: "relative" }}
-              onClick={() => cameraInputRef.current?.click()}
             >
               <div className="dropzone-icon"><Camera size={24} /></div>
               <p>{photos.length === 0 ? "Tap to open camera" : "Add another photo"}</p>
