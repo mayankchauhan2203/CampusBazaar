@@ -1,6 +1,6 @@
 import { useLocation, Navigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { ShoppingBag, Shield, ArrowRight, Lock, Users, CheckCircle } from "lucide-react";
+import { ShoppingBag, Shield, ArrowRight, Lock, Users, CheckCircle, AlertTriangle } from "lucide-react";
 
 function Login() {
   const { loginWithIITD, currentUser } = useAuth();
@@ -82,6 +82,26 @@ function Login() {
               <p style={{ margin: 0, fontSize: "0.825rem", lineHeight: 1.5 }}>
                 Exclusive to <code>@iitd.ac.in</code> accounts. Sign in with
                 your official IITD Single Sign-On credentials.
+              </p>
+            </div>
+          </div>
+
+          {/* Network Warning notice */}
+          <div style={{
+            marginBottom: "1.75rem",
+            background: "rgba(220, 38, 38, 0.05)",
+            border: "1px solid rgba(220, 38, 38, 0.2)",
+            color: "#dc2626",
+            borderRadius: "10px",
+            padding: "12px 14px",
+            display: "flex",
+            gap: "12px",
+            alignItems: "flex-start"
+          }}>
+            <AlertTriangle size={18} style={{ flexShrink: 0, marginTop: "2px" }} color="#dc2626" />
+            <div className="alert-text">
+              <p style={{ margin: 0, fontSize: "0.825rem", lineHeight: 1.5 }}>
+                <strong>Network Issue:</strong> The login portal is currently facing issues on IITD Wi-Fi. Please use an <strong>alternate network</strong> (like mobile data) for a smooth login experience.
               </p>
             </div>
           </div>
