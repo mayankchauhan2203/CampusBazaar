@@ -622,7 +622,7 @@ function ItemDetails() {
           )}
 
           {/* Seller contact — shown to the reserved buyer only */}
-          {!isAdmin && item.reservedBy === currentUser?.uid && (sellerContact?.sellerPhone || item.sellerPhone) && (
+          {!isAdmin && item.reservedBy === currentUser?.uid && (
             <div style={{
               display: "flex",
               alignItems: "center",
@@ -653,9 +653,15 @@ function ItemDetails() {
                     📧 <a href={`mailto:${item.sellerEmail}`} style={{ color: "var(--text-muted)" }}>{item.sellerEmail}</a>
                   </p>
                 )}
-                <p style={{ margin: "1px 0 0", fontSize: "12px", color: "var(--text-muted)" }}>
-                  📞 <a href={`tel:${sellerContact?.sellerPhone || item.sellerPhone}`} style={{ color: "var(--text-muted)" }}>{sellerContact?.sellerPhone || item.sellerPhone}</a>
-                </p>
+                {(sellerContact?.sellerPhone || item.sellerPhone) ? (
+                  <p style={{ margin: "1px 0 0", fontSize: "12px", color: "var(--text-muted)" }}>
+                    📞 <a href={`tel:${sellerContact?.sellerPhone || item.sellerPhone}`} style={{ color: "var(--text-muted)" }}>{sellerContact?.sellerPhone || item.sellerPhone}</a>
+                  </p>
+                ) : (
+                  <p style={{ margin: "1px 0 0", fontSize: "11px", color: "var(--text-muted)", fontStyle: "italic" }}>
+                    No phone on record
+                  </p>
+                )}
               </div>
             </div>
           )}
