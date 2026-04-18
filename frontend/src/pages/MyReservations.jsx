@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { collection, query, where, getDocs, doc, updateDoc, addDoc, serverTimestamp, getDoc, deleteField } from "firebase/firestore";
+import { collection, query, where, getDocs, doc, updateDoc, addDoc, serverTimestamp, getDoc, setDoc, deleteField } from "firebase/firestore";
 import { db } from "../firebase";
 import { useAuth } from "../context/AuthContext";
 import { Package, ShieldAlert, X, Phone, User, Mail, ChevronLeft, MapPin } from "lucide-react";
@@ -93,7 +93,9 @@ function MyReservations() {
   const openSellerDetails = async (item) => {
     setActionLoading(true);
     try {
-      const contactSnap = await getDoc(doc(db, "items", item.id, "private", "contact"));
+      const contactRef = doc(db, "items", item.id, "private", "contact");
+      await setDoc(contactRef, { reservedBy: currentUser.uid }, { merge: true });
+      const contactSnap = await getDoc(contactRef);
       setSelectedSeller({
         name:  item.sellerName  || "Unknown",
         email: item.sellerEmail || "Private",
