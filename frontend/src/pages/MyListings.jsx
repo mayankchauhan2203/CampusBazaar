@@ -1,4 +1,4 @@
-import { collection, getDocs, getDoc, doc, deleteDoc, query, where, updateDoc, addDoc, serverTimestamp, deleteField } from "firebase/firestore";
+import { collection, getDocs, getDoc, doc, deleteDoc, query, where, updateDoc, addDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "../firebase";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
@@ -94,6 +94,11 @@ function MyListings() {
       await updateDoc(doc(db, "items", item.id), { status: "sold" });
 
       const orderNumber = generateOrderNumber();
+      let buyerEntryNumber = "";
+      if (item.reservedBy) {
+        const buyerSnap = await getDoc(doc(db, "users", item.reservedBy));
+        if (buyerSnap.exists()) buyerEntryNumber = buyerSnap.data().entry_number || "";
+      }
       await addDoc(collection(db, "completedOrders"), {
         orderNumber,
         itemId: item.id,
@@ -102,15 +107,15 @@ function MyListings() {
         itemImage: item.image || null,
         itemCategory: item.category || null,
         sellerId: currentUser.uid,
-        sellerName: currentUser.displayName || "Unknown",
-        sellerEmail: currentUser.email || "N/A",
+        sellerName: userData?.name || currentUser.displayName || "Unknown",
+        sellerEmail: userData?.email || currentUser.email || "N/A",
         sellerPhone: userData?.phone || "N/A",
         sellerEntryNumber: userData?.entry_number || "",
         buyerId: item.reservedBy || null,
         buyerName: item.reservedByName || "Unknown",
         buyerEmail: item.reservedByEmail || "N/A",
         buyerPhone: item.reservedByPhone || "N/A",
-        buyerEntryNumber: "",
+        buyerEntryNumber,
         completedAt: serverTimestamp(),
       });
 

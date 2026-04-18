@@ -59,11 +59,11 @@ function MyReservations() {
       const itemRef = doc(db, "items", item.id);
       await updateDoc(itemRef, {
         status: "available",
-        reservedBy: null,
-        reservedByName: null,
-        reservedByEmail: null,
-        reservedByPhone: null,
-        reservedAt: null,
+        reservedBy: deleteField(),
+        reservedByName: deleteField(),
+        reservedByEmail: deleteField(),
+        reservedByPhone: deleteField(),
+        reservedAt: deleteField(),
       });
 
       // Clear reservedBy from private subcollection
