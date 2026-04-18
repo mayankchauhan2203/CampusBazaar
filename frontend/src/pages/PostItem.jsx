@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { collection, addDoc, setDoc, serverTimestamp, query, where, getDocs, doc, updateDoc } from "firebase/firestore";
+import { collection, addDoc, setDoc, deleteDoc, serverTimestamp, query, where, getDocs, doc, updateDoc } from "firebase/firestore";
 import { db } from "../firebase";
 import { Send, Camera, Tag, DollarSign, FileText, Layers, X, Plus } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
@@ -117,25 +117,42 @@ function PostItem() {
         return;
       }
 
-      const itemRef = await addDoc(collection(db, "items"), {
-        title,
-        price: Number(price),
-        description,
-        category: category || "Other",
-        image: imageUrls[0],       // keep backward compat for cards in Marketplace/Home
-        images: imageUrls,         // full array for ItemDetails carousel
-        status: "available",
-        sellerId: currentUser.uid,
-        sellerName: userData?.name || currentUser.displayName || "IITD Student",
-        sellerEmail: userData?.email || currentUser.email,
-        createdAt: serverTimestamp(),
-      });
+      let itemRef;
+      try {
+        itemRef = await addDoc(collection(db, "items"), {
+          title,
+          price: Number(price),
+          description,
+          category: category || "Other",
+          image: imageUrls[0],       // keep backward compat for cards in Marketplace/Home
+          images: imageUrls,         // full array for ItemDetails carousel
+          status: "available",
+          sellerId: currentUser.uid,
+          sellerName: userData?.name || currentUser.displayName || "IITD Student",
+          sellerEmail: userData?.email || currentUser.email,
+          createdAt: serverTimestamp(),
+        });
+      } catch (error) {
+        console.error("Item create failed:", error);
+        toast.error("Failed to list item. Try again.");
+        setSubmitting(false);
+        return;
+      }
 
       // Store phone in a private subcollection — not readable by the public
-      await setDoc(doc(db, "items", itemRef.id, "private", "contact"), {
-        sellerPhone: userData?.phone || "",
-        sellerId: currentUser.uid,
-      });
+      try {
+        await setDoc(doc(db, "items", itemRef.id, "private", "contact"), {
+          sellerPhone: userData?.phone || "",
+          sellerId: currentUser.uid,
+        });
+      } catch (error) {
+        console.error("Contact save failed:", error);
+        // Roll back: remove the item so we don't have orphaned listings
+        await deleteDoc(doc(db, "items", itemRef.id)).catch(() => {});
+        toast.error("Failed to list item. Try again.");
+        setSubmitting(false);
+        return;
+      }
 
       toast.success("Item listed successfully!");
       navigate("/marketplace");
