@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { doc, getDoc, updateDoc, addDoc, collection, serverTimestamp, query, where, getDocs, deleteField, deleteDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc, updateDoc, addDoc, collection, serverTimestamp, query, where, getDocs, deleteField, deleteDoc } from "firebase/firestore";
 import { db } from "../firebase";
 import { useAuth } from "../context/AuthContext";
 import { Package, ShoppingCart, CheckCircle, User, ArrowLeft, AlertTriangle, Trash2, XCircle, ChevronLeft, ChevronRight, X, ZoomIn } from "lucide-react";
@@ -53,15 +53,6 @@ function ItemDetails() {
           const itemData = { id: itemSnap.id, ...itemSnap.data() };
           setItem(itemData);
 
-          // Fetch private contact doc for authorised viewers:
-          // seller, reserved buyer, or admin.
-          const isSeller = currentUser && itemData.sellerId === currentUser.uid;
-          const isBuyer  = currentUser && itemData.reservedBy === currentUser.uid;
-          if (isSeller || isBuyer || isAdmin) {
-            getDoc(doc(db, "items", id, "private", "contact")).then(contactSnap => {
-              if (contactSnap.exists()) setSellerContact(contactSnap.data());
-            }).catch(e => console.error("Error fetching seller contact:", e));
-          }
 
           if (currentUser) {
             const q = query(
@@ -86,6 +77,21 @@ function ItemDetails() {
     }
     fetchItem();
   }, [id, navigate, isAdmin]);
+
+  // Separate effect so it re-runs whenever currentUser resolves (auth is async).
+  // The main fetchItem effect doesn't list currentUser as a dep, so without this
+  // the contact is never fetched for a buyer who navigates back to the page.
+  useEffect(() => {
+    if (!item || !currentUser) return;
+    const isSeller = item.sellerId === currentUser.uid;
+    const isBuyer  = item.reservedBy === currentUser.uid;
+    if (!isSeller && !isBuyer && !isAdmin) return;
+
+    getDoc(doc(db, "items", item.id, "private", "contact"))
+      .then(snap => { if (snap.exists()) setSellerContact(snap.data()); })
+      .catch(e => console.error("Error fetching seller contact:", e));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [item?.id, item?.reservedBy, item?.sellerId, currentUser?.uid, isAdmin]);
 
   function handleReserveClick() {
     if (!currentUser) {
@@ -182,12 +188,13 @@ function ItemDetails() {
           createdAt: serverTimestamp(),
         });
 
-        // Write reservedBy into the subcollection so the read rule can check
-        // it directly without a get() call — no race condition possible.
+        // Merge reservedBy into the subcollection.
+        // setDoc+merge creates the doc for legacy listings (no subcollection yet)
+        // and updates it for new listings — no race condition, no "doc not found" throw.
         const contactRef = doc(db, "items", item.id, "private", "contact");
-        await updateDoc(contactRef, { reservedBy: currentUser.uid });
+        await setDoc(contactRef, { reservedBy: currentUser.uid }, { merge: true });
 
-        // Now the rule passes — fetch the full contact doc
+        // Now the rule passes — fetch the full contact doc (includes sellerPhone)
         const contactSnap = await getDoc(contactRef);
         if (contactSnap.exists()) setSellerContact(contactSnap.data());
 
@@ -615,7 +622,7 @@ function ItemDetails() {
           )}
 
           {/* Seller contact — shown to the reserved buyer only */}
-          {!isAdmin && item.reservedBy === currentUser?.uid && sellerContact?.sellerPhone && (
+          {!isAdmin && item.reservedBy === currentUser?.uid && (sellerContact?.sellerPhone || item.sellerPhone) && (
             <div style={{
               display: "flex",
               alignItems: "center",
@@ -647,7 +654,7 @@ function ItemDetails() {
                   </p>
                 )}
                 <p style={{ margin: "1px 0 0", fontSize: "12px", color: "var(--text-muted)" }}>
-                  📞 <a href={`tel:${sellerContact.sellerPhone}`} style={{ color: "var(--text-muted)" }}>{sellerContact.sellerPhone}</a>
+                  📞 <a href={`tel:${sellerContact?.sellerPhone || item.sellerPhone}`} style={{ color: "var(--text-muted)" }}>{sellerContact?.sellerPhone || item.sellerPhone}</a>
                 </p>
               </div>
             </div>
